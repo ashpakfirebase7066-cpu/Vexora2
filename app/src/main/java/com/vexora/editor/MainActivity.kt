@@ -12,8 +12,10 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.pointerInput
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -25,6 +27,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.pointer.consume
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -37,6 +40,7 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
 import coil.compose.AsyncImage
 import kotlin.math.max
+import kotlin.math.roundToLong
 
 private val Bg = Color(0xFF111216)
 private val Panel2 = Color(0xFF24252C)
@@ -76,6 +80,21 @@ private fun VexoraEditor() {
         PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo)
     )
 
+    fun updateSelectedDuration(newDuration: Long) {
+        if (selected in clips.indices) {
+            val old = clips[selected]
+            clips[selected] = old.copy(duration = newDuration.coerceIn(500L, 60000L))
+        }
+    }
+
+    fun duplicateSelected() {
+        if (selected in clips.indices) {
+            val copy = clips[selected].copy(id = nextId++)
+            clips.add(selected + 1, copy)
+            selected++
+        }
+    }
+
     Column(Modifier.fillMaxSize().background(Bg)) {
         EditorTopBar(onMedia = ::openPicker)
         Preview(clips.getOrNull(selected))
@@ -89,6 +108,17 @@ private fun VexoraEditor() {
                 if (selected in clips.indices) {
                     clips.removeAt(selected)
                     selected = if (clips.isEmpty()) -1 else selected.coerceAtMost(clips.lastIndex)
+                }
+            },
+            onDuplicate = ::duplicateSelected,
+            onAction = { name ->
+                if (name == "Replace") openPicker()
+                else Toast.makeText(context, "$name selected", Toast.LENGTH_SHORT).show()
+            },
+            onResize = { deltaPx ->
+                if (selected in clips.indices && !clips[selected].video) {
+                    val deltaMs = (deltaPx / 55f * 1000f).roundToLong()
+                    updateSelectedDuration(clips[selected].duration + deltaMs)
                 }
             },
             onLeft = {
@@ -214,6 +244,9 @@ private fun Timeline(
     onSelect: (Int) -> Unit,
     onAdd: () -> Unit,
     onDelete: () -> Unit,
+    onDuplicate: () -> Unit,
+    onAction: (String) -> Unit,
+    onResize: (Float) -> Unit,
     onLeft: () -> Unit,
     onRight: () -> Unit
 ) {
@@ -266,7 +299,6 @@ private fun Timeline(
         }
 
         Row(Modifier.fillMaxWidth().height(264.dp)) {
-            // Left track controls. The audio/speaker lane is intentionally removed.
             Column(
                 Modifier.width(76.dp).fillMaxHeight().background(Color(0xFF17181D)),
                 horizontalAlignment = Alignment.CenterHorizontally
@@ -280,16 +312,22 @@ private fun Timeline(
                 }
             }
 
-            // BoxWithConstraints makes the timeline occupy all remaining screen width.
             BoxWithConstraints(Modifier.fillMaxHeight().weight(1f)) {
                 val visibleWidth = max(maxWidth.value, contentWidth)
-                Column(
-                    Modifier.fillMaxHeight().horizontalScroll(timelineScroll)
-                ) {
+                Column(Modifier.fillMaxHeight().horizontalScroll(timelineScroll)) {
                     TimelineLane(44.dp, visibleWidth, "Tap to add music")
                     TimelineLane(44.dp, visibleWidth, "Tap to add subtitle")
                     TimelineLane(44.dp, visibleWidth, "Tap to add sticker / overlay")
-                    MainMediaLane(clips, selected, onSelect, onAdd, visibleWidth)
+                    MainMediaLane(
+                        clips = clips,
+                        selected = selected,
+                        onSelect = onSelect,
+                        onAdd = onAdd,
+                        onDuplicate = onDuplicate,
+                        onAction = onAction,
+                        onResize = onResize,
+                        contentWidth = visibleWidth
+                    )
                     TimeMarkers(clips, visibleWidth, pixelsPerSecond)
                 }
             }
@@ -339,6 +377,9 @@ private fun MainMediaLane(
     selected: Int,
     onSelect: (Int) -> Unit,
     onAdd: () -> Unit,
+    onDuplicate: () -> Unit,
+    onAction: (String) -> Unit,
+    onResize: (Float) -> Unit,
     contentWidth: Float
 ) {
     Box(
@@ -363,7 +404,13 @@ private fun MainMediaLane(
             Row(Modifier.fillMaxHeight().padding(start = 8.dp, top = 10.dp, bottom = 10.dp)) {
                 clips.forEachIndexed { index, clip ->
                     val width = (clip.duration / 1000f * 55f).coerceIn(58f, 360f)
-                    TimelineClip(clip, index == selected, width.dp) { onSelect(index) }
+                    TimelineClip(
+                        clip = clip,
+                        selected = index == selected,
+                        width = width.dp,
+                        onClick = { onSelect(index) },
+                        onResize = if (index == selected && !clip.video) onResize else null
+                    )
                 }
                 Box(
                     Modifier.padding(start = 6.dp).width(58.dp).fillMaxHeight()
@@ -374,12 +421,60 @@ private fun MainMediaLane(
                     Icon(Icons.Default.Add, "Add media", tint = SecondaryText, modifier = Modifier.size(28.dp))
                 }
             }
+
+            if (selected in clips.indices) {
+                SelectedClipToolbar(
+                    modifier = Modifier.align(Alignment.TopCenter).offset(y = (-60).dp),
+                    onDuplicate = onDuplicate,
+                    onAction = onAction
+                )
+            }
         }
     }
 }
 
 @Composable
-private fun TimelineClip(clip: Clip, selected: Boolean, width: Dp, onClick: () -> Unit) {
+private fun SelectedClipToolbar(
+    modifier: Modifier,
+    onDuplicate: () -> Unit,
+    onAction: (String) -> Unit
+) {
+    Row(
+        modifier
+            .height(58.dp)
+            .background(Color(0xFFFFD400), RoundedCornerShape(12.dp))
+            .padding(horizontal = 7.dp, vertical = 5.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        ClipAction(Icons.Default.Refresh, "Replace") { onAction("Replace") }
+        ClipAction(Icons.Default.Star, "Keyframe") { onAction("Keyframe") }
+        ClipAction(Icons.Default.ShowChart, "Curve") { onAction("Curve") }
+        ClipAction(Icons.Default.Lock, "Lock") { onAction("Lock") }
+        ClipAction(Icons.Default.ContentCopy, "Duplicate") { onDuplicate() }
+        ClipAction(Icons.Default.Delete, "Delete") { onAction("Delete") }
+    }
+}
+
+@Composable
+private fun ClipAction(icon: ImageVector, label: String, onClick: () -> Unit) {
+    Column(
+        Modifier.width(54.dp).fillMaxHeight().clickable(onClick = onClick),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Icon(icon, label, tint = Color(0xFF17181D), modifier = Modifier.size(23.dp))
+        Text(label, color = Color(0xFF17181D), fontSize = 8.sp, maxLines = 1)
+    }
+}
+
+@Composable
+private fun TimelineClip(
+    clip: Clip,
+    selected: Boolean,
+    width: Dp,
+    onClick: () -> Unit,
+    onResize: ((Float) -> Unit)?
+) {
     Box(
         Modifier.padding(end = 3.dp).width(width).fillMaxHeight().clip(RoundedCornerShape(4.dp))
             .border(
@@ -407,6 +502,33 @@ private fun TimelineClip(clip: Clip, selected: Boolean, width: Dp, onClick: () -
                 .background(Color.Black.copy(.65f))
                 .padding(3.dp)
         )
+
+        if (onResize != null) {
+            Box(
+                Modifier.align(Alignment.CenterEnd)
+                    .width(24.dp).fillMaxHeight()
+                    .pointerInput(clip.id, clip.duration) {
+                        detectDragGestures(
+                            onDrag = { change, dragAmount ->
+                                change.consume()
+                                onResize(dragAmount.x)
+                            }
+                        )
+                    },
+                contentAlignment = Alignment.Center
+            ) {
+                Box(
+                    Modifier.width(6.dp).fillMaxHeight().padding(vertical = 8.dp)
+                        .background(TimelineAccent, RoundedCornerShape(4.dp))
+                )
+                Icon(
+                    Icons.Default.ChevronRight,
+                    "Drag to change image duration",
+                    tint = Color.Black,
+                    modifier = Modifier.size(16.dp)
+                )
+            }
+        }
     }
 }
 
