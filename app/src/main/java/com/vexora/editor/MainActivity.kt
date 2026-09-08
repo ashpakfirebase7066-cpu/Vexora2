@@ -507,7 +507,7 @@ private fun TimelineClip(
             Box(
                 Modifier.align(Alignment.CenterEnd)
                     .width(24.dp).fillMaxHeight()
-                    .pointerInput(clip.id, clip.duration) {
+                    .pointerInput(clip.id) {
                         detectDragGestures(
                             onDrag = { change, dragAmount ->
                                 change.consume()
