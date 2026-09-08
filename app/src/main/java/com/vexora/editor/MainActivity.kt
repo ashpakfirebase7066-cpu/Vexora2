@@ -161,7 +161,7 @@ private fun TimeRow(total: Long) {
 
 @Composable
 private fun Timeline(clips: List<Clip>, selected: Int, onSelect: (Int) -> Unit, onAdd: () -> Unit, onDelete: () -> Unit, onLeft: () -> Unit, onRight: () -> Unit) {
-    Column(Modifier.fillMaxWidth().weight(1f).background(Color(0xFF15161A))) {
+    Column(Modifier.fillMaxWidth().height(300.dp).background(Color(0xFF15161A))) {
         Row(Modifier.fillMaxWidth().height(42.dp).padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
             TimelineAction(Icons.Default.LibraryMusic, "Music"); TimelineAction(Icons.Default.TextFields, "Text"); TimelineAction(Icons.Default.Image, "Overlay"); TimelineAction(Icons.Default.VideoLibrary, "Clip")
             Spacer(Modifier.weight(1f)); IconButton(onClick = onLeft, enabled = selected > 0) { Icon(Icons.Default.ArrowBack, "Move left", tint = SecondaryText) }; IconButton(onClick = onRight, enabled = selected >= 0 && selected < clips.lastIndex) { Icon(Icons.Default.ArrowForward, "Move right", tint = SecondaryText) }; IconButton(onClick = onDelete, enabled = selected >= 0) { Icon(Icons.Default.Delete, "Delete", tint = Color(0xFFE56B73)) }
