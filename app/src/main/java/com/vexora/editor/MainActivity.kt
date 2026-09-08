@@ -28,6 +28,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -35,9 +36,9 @@ import androidx.media3.common.MediaItem
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
 import coil.compose.AsyncImage
+import kotlin.math.max
 
 private val Bg = Color(0xFF111216)
-private val Panel = Color(0xFF191A20)
 private val Panel2 = Color(0xFF24252C)
 private val Accent = Color(0xFF8B5CF6)
 private val TimelineAccent = Color(0xFFE6C84A)
@@ -70,11 +71,14 @@ private fun VexoraEditor() {
         }
         if (selected < 0 && clips.isNotEmpty()) selected = 0
     }
-    fun openPicker() = picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo))
+
+    fun openPicker() = picker.launch(
+        PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo)
+    )
 
     Column(Modifier.fillMaxSize().background(Bg)) {
         EditorTopBar(onMedia = ::openPicker)
-        Preview(clip = clips.getOrNull(selected))
+        Preview(clips.getOrNull(selected))
         TimeRow(clips.sumOf { it.duration })
         Timeline(
             clips = clips,
@@ -116,7 +120,12 @@ private fun EditorTopBar(onMedia: () -> Unit) {
     ) {
         IconButton(onClick = {}) { Icon(Icons.Default.ArrowBack, "Back", tint = PrimaryText) }
         Icon(Icons.Default.FolderOpen, "Project", tint = SecondaryText)
-        Text("Vexora 2", color = PrimaryText, fontWeight = FontWeight.Bold, modifier = Modifier.padding(start = 10.dp).weight(1f))
+        Text(
+            "Vexora 2",
+            color = PrimaryText,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(start = 10.dp).weight(1f)
+        )
         Text("Original", color = PrimaryText, fontSize = 12.sp)
         IconButton(onClick = {}) { Icon(Icons.Default.MoreHoriz, "More", tint = SecondaryText) }
         Button(
@@ -134,7 +143,10 @@ private fun EditorTopBar(onMedia: () -> Unit) {
 
 @Composable
 private fun Preview(clip: Clip?) {
-    Box(Modifier.fillMaxWidth().height(260.dp).background(Color(0xFF0C0D10)), contentAlignment = Alignment.Center) {
+    Box(
+        Modifier.fillMaxWidth().height(260.dp).background(Color(0xFF0C0D10)),
+        contentAlignment = Alignment.Center
+    ) {
         when {
             clip == null -> Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Icon(Icons.Default.VideoLibrary, null, tint = SecondaryText, modifier = Modifier.size(46.dp))
@@ -142,12 +154,18 @@ private fun Preview(clip: Clip?) {
                 Text("Add image or video to start", color = SecondaryText, fontSize = 13.sp)
             }
             clip.video -> VideoPlayer(clip.uri)
-            else -> AsyncImage(clip.uri, "Image preview", Modifier.fillMaxSize().padding(8.dp), contentScale = ContentScale.Fit)
+            else -> AsyncImage(
+                clip.uri,
+                "Image preview",
+                Modifier.fillMaxSize().padding(8.dp),
+                contentScale = ContentScale.Fit
+            )
         }
         if (clip != null) {
             IconButton(
                 onClick = {},
-                modifier = Modifier.align(Alignment.BottomCenter).background(Color.Black.copy(.55f), RoundedCornerShape(50))
+                modifier = Modifier.align(Alignment.BottomCenter)
+                    .background(Color.Black.copy(.55f), RoundedCornerShape(50))
             ) { Icon(Icons.Default.PlayArrow, "Play", tint = Color.White) }
         }
         IconButton(onClick = {}, modifier = Modifier.align(Alignment.BottomEnd)) {
@@ -189,11 +207,6 @@ private fun TimeRow(total: Long) {
     }
 }
 
-/**
- * Multi-track timeline inspired by the reference editor layout:
- * a fixed track-control column on the left and horizontally scrolling
- * lanes for music, subtitles, overlays and the main media track.
- */
 @Composable
 private fun Timeline(
     clips: List<Clip>,
@@ -210,27 +223,50 @@ private fun Timeline(
     val contentWidth = (totalDuration / 1000f * pixelsPerSecond).coerceAtLeast(360f)
 
     Column(Modifier.fillMaxWidth().height(300.dp).background(Color(0xFF15161A))) {
-        // Compact timeline controls, matching the reference editor's header row.
         Row(
             Modifier.fillMaxWidth().height(36.dp).background(Color(0xFF121318)),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("TRACKS", color = SecondaryText, fontSize = 8.sp, modifier = Modifier.width(76.dp).padding(start = 12.dp))
+            Text(
+                "TRACKS",
+                color = SecondaryText,
+                fontSize = 8.sp,
+                modifier = Modifier.width(76.dp).padding(start = 12.dp)
+            )
             Spacer(Modifier.weight(1f))
             IconButton(onClick = onLeft, enabled = selected > 0, modifier = Modifier.size(34.dp)) {
-                Icon(Icons.Default.ArrowBack, "Move left", tint = if (selected > 0) PrimaryText else Color(0xFF4B4C55), modifier = Modifier.size(17.dp))
+                Icon(
+                    Icons.Default.ArrowBack,
+                    "Move left",
+                    tint = if (selected > 0) PrimaryText else Color(0xFF4B4C55),
+                    modifier = Modifier.size(17.dp)
+                )
             }
-            IconButton(onClick = onRight, enabled = selected >= 0 && selected < clips.lastIndex, modifier = Modifier.size(34.dp)) {
-                Icon(Icons.Default.ArrowForward, "Move right", tint = if (selected >= 0 && selected < clips.lastIndex) PrimaryText else Color(0xFF4B4C55), modifier = Modifier.size(17.dp))
+            IconButton(
+                onClick = onRight,
+                enabled = selected >= 0 && selected < clips.lastIndex,
+                modifier = Modifier.size(34.dp)
+            ) {
+                Icon(
+                    Icons.Default.ArrowForward,
+                    "Move right",
+                    tint = if (selected >= 0 && selected < clips.lastIndex) PrimaryText else Color(0xFF4B4C55),
+                    modifier = Modifier.size(17.dp)
+                )
             }
             IconButton(onClick = onDelete, enabled = selected >= 0, modifier = Modifier.size(34.dp)) {
-                Icon(Icons.Default.Delete, "Delete", tint = if (selected >= 0) Color(0xFFE56B73) else Color(0xFF4B4C55), modifier = Modifier.size(17.dp))
+                Icon(
+                    Icons.Default.Delete,
+                    "Delete",
+                    tint = if (selected >= 0) Color(0xFFE56B73) else Color(0xFF4B4C55),
+                    modifier = Modifier.size(17.dp)
+                )
             }
             Spacer(Modifier.width(5.dp))
         }
 
         Row(Modifier.fillMaxWidth().height(264.dp)) {
-            // Fixed left-side track controls.
+            // Left track controls. The audio/speaker lane is intentionally removed.
             Column(
                 Modifier.width(76.dp).fillMaxHeight().background(Color(0xFF17181D)),
                 horizontalAlignment = Alignment.CenterHorizontally
@@ -239,36 +275,22 @@ private fun Timeline(
                 TrackButton(Icons.Default.TextFields, "Subtitle")
                 TrackButton(Icons.Default.Image, "Overlay")
                 TrackButton(Icons.Default.VideoLibrary, "Video")
-                TrackButton(Icons.Default.VolumeUp, "Audio")
                 Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
                     Text("Cover", color = SecondaryText, fontSize = 8.sp)
                 }
             }
 
-            // The lanes share one horizontal scroll position, like a real editor timeline.
-            Column(
-                Modifier.fillMaxHeight().weight(1f).horizontalScroll(timelineScroll)
-            ) {
-                TimelineLane(height = 44.dp, contentWidth = contentWidth, hint = "Tap to add music", icon = Icons.Default.Add)
-                TimelineLane(height = 44.dp, contentWidth = contentWidth, hint = "Tap to add subtitle", icon = Icons.Default.Add)
-                TimelineLane(height = 44.dp, contentWidth = contentWidth, hint = "Tap to add sticker / overlay", icon = Icons.Default.Add)
-                MainMediaLane(clips, selected, onSelect, onAdd, contentWidth)
-                Row(
-                    Modifier.width(contentWidth.dp).height(36.dp).background(Color(0xFF15161A)),
-                    verticalAlignment = Alignment.Top
+            // BoxWithConstraints makes the timeline occupy all remaining screen width.
+            BoxWithConstraints(Modifier.fillMaxHeight().weight(1f)) {
+                val visibleWidth = max(maxWidth.value, contentWidth)
+                Column(
+                    Modifier.fillMaxHeight().horizontalScroll(timelineScroll)
                 ) {
-                    if (clips.isNotEmpty()) {
-                        var elapsed = 0L
-                        clips.forEach { clip ->
-                            val w = (clip.duration / 1000f * pixelsPerSecond).coerceIn(58f, 360f)
-                            Box(Modifier.width(w.dp).padding(top = 3.dp)) {
-                                Text(time(elapsed), color = SecondaryText, fontSize = 8.sp)
-                                elapsed += clip.duration
-                            }
-                        }
-                    } else {
-                        Text("00:00", color = SecondaryText, fontSize = 8.sp, modifier = Modifier.padding(top = 3.dp))
-                    }
+                    TimelineLane(44.dp, visibleWidth, "Tap to add music")
+                    TimelineLane(44.dp, visibleWidth, "Tap to add subtitle")
+                    TimelineLane(44.dp, visibleWidth, "Tap to add sticker / overlay")
+                    MainMediaLane(clips, selected, onSelect, onAdd, visibleWidth)
+                    TimeMarkers(clips, visibleWidth, pixelsPerSecond)
                 }
             }
         }
@@ -284,24 +306,28 @@ private fun TrackButton(icon: ImageVector, label: String) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Icon(icon, label, tint = SecondaryText, modifier = Modifier.size(18.dp))
             Box(
-                Modifier.padding(start = 2.dp).size(13.dp).background(Color(0xFF2C2D34), RoundedCornerShape(50)),
+                Modifier.padding(start = 2.dp).size(13.dp)
+                    .background(Color(0xFF2C2D34), RoundedCornerShape(50)),
                 contentAlignment = Alignment.Center
-            ) { Icon(Icons.Default.Add, "Add $label", tint = PrimaryText, modifier = Modifier.size(11.dp)) }
+            ) {
+                Icon(Icons.Default.Add, "Add $label", tint = PrimaryText, modifier = Modifier.size(11.dp))
+            }
         }
     }
 }
 
 @Composable
-private fun TimelineLane(height: androidx.compose.ui.unit.Dp, contentWidth: Float, hint: String, icon: ImageVector) {
+private fun TimelineLane(height: Dp, contentWidth: Float, hint: String) {
     Box(
         Modifier.width(contentWidth.dp).height(height).border(0.5.dp, Color(0xFF2A2B32)),
         contentAlignment = Alignment.CenterStart
     ) {
         Box(
-            Modifier.padding(start = 8.dp).width(208.dp).height(30.dp).background(Color(0xFF24262D), RoundedCornerShape(3.dp)),
+            Modifier.padding(start = 8.dp).width(208.dp).height(30.dp)
+                .background(Color(0xFF24262D), RoundedCornerShape(3.dp)),
             contentAlignment = Alignment.CenterStart
         ) {
-            Icon(icon, null, tint = SecondaryText, modifier = Modifier.padding(start = 7.dp).size(15.dp))
+            Icon(Icons.Default.Add, null, tint = SecondaryText, modifier = Modifier.padding(start = 7.dp).size(15.dp))
             Text(hint, color = Color(0xFF777984), fontSize = 10.sp, modifier = Modifier.padding(start = 28.dp))
         }
     }
@@ -316,12 +342,15 @@ private fun MainMediaLane(
     contentWidth: Float
 ) {
     Box(
-        Modifier.width(contentWidth.dp).height(96.dp).background(Color(0xFF1B1C22)).border(0.5.dp, Color(0xFF34353D))
+        Modifier.width(contentWidth.dp).height(96.dp)
+            .background(Color(0xFF1B1C22))
+            .border(0.5.dp, Color(0xFF34353D))
     ) {
         if (clips.isEmpty()) {
             Box(
                 Modifier.padding(start = 8.dp, top = 10.dp).width(280.dp).height(74.dp)
-                    .border(1.dp, Color(0xFF3B3C45), RoundedCornerShape(5.dp)).clickable(onClick = onAdd),
+                    .border(1.dp, Color(0xFF3B3C45), RoundedCornerShape(5.dp))
+                    .clickable(onClick = onAdd),
                 contentAlignment = Alignment.Center
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -338,20 +367,28 @@ private fun MainMediaLane(
                 }
                 Box(
                     Modifier.padding(start = 6.dp).width(58.dp).fillMaxHeight()
-                        .border(1.dp, Color(0xFF3B3C45), RoundedCornerShape(5.dp)).clickable(onClick = onAdd),
+                        .border(1.dp, Color(0xFF3B3C45), RoundedCornerShape(5.dp))
+                        .clickable(onClick = onAdd),
                     contentAlignment = Alignment.Center
-                ) { Icon(Icons.Default.Add, "Add media", tint = SecondaryText, modifier = Modifier.size(28.dp)) }
+                ) {
+                    Icon(Icons.Default.Add, "Add media", tint = SecondaryText, modifier = Modifier.size(28.dp))
+                }
             }
         }
     }
 }
 
 @Composable
-private fun TimelineClip(clip: Clip, selected: Boolean, width: androidx.compose.ui.unit.Dp, onClick: () -> Unit) {
+private fun TimelineClip(clip: Clip, selected: Boolean, width: Dp, onClick: () -> Unit) {
     Box(
         Modifier.padding(end = 3.dp).width(width).fillMaxHeight().clip(RoundedCornerShape(4.dp))
-            .border(if (selected) 2.dp else 1.dp, if (selected) TimelineAccent else Color(0xFF3B3C45), RoundedCornerShape(4.dp))
-            .background(Panel2).clickable(onClick = onClick),
+            .border(
+                if (selected) 2.dp else 1.dp,
+                if (selected) TimelineAccent else Color(0xFF3B3C45),
+                RoundedCornerShape(4.dp)
+            )
+            .background(Panel2)
+            .clickable(onClick = onClick),
         contentAlignment = Alignment.Center
     ) {
         if (clip.video) {
@@ -366,8 +403,31 @@ private fun TimelineClip(clip: Clip, selected: Boolean, width: androidx.compose.
             time(clip.duration),
             color = Color.White,
             fontSize = 8.sp,
-            modifier = Modifier.align(Alignment.BottomEnd).background(Color.Black.copy(.7f)).padding(horizontal = 4.dp, vertical = 2.dp)
+            modifier = Modifier.align(Alignment.BottomEnd)
+                .background(Color.Black.copy(.65f))
+                .padding(3.dp)
         )
+    }
+}
+
+@Composable
+private fun TimeMarkers(clips: List<Clip>, contentWidth: Float, pixelsPerSecond: Float) {
+    Row(
+        Modifier.width(contentWidth.dp).height(28.dp).background(Color(0xFF15161A)),
+        verticalAlignment = Alignment.Top
+    ) {
+        if (clips.isNotEmpty()) {
+            var elapsed = 0L
+            clips.forEach { clip ->
+                val width = (clip.duration / 1000f * pixelsPerSecond).coerceIn(58f, 360f)
+                Box(Modifier.width(width.dp).padding(top = 3.dp)) {
+                    Text(time(elapsed), color = SecondaryText, fontSize = 8.sp)
+                    elapsed += clip.duration
+                }
+            }
+        } else {
+            Text("00:00", color = SecondaryText, fontSize = 8.sp, modifier = Modifier.padding(top = 3.dp))
+        }
     }
 }
 
@@ -387,7 +447,8 @@ private fun BottomTools(onMedia: () -> Unit, onTool: (String) -> Unit) {
         "Record" to Icons.Default.Mic
     )
     Row(
-        Modifier.fillMaxWidth().height(82.dp).background(Color(0xFF121318)).horizontalScroll(rememberScrollState()),
+        Modifier.fillMaxWidth().height(82.dp).background(Color(0xFF121318))
+            .horizontalScroll(rememberScrollState()),
         verticalAlignment = Alignment.CenterVertically
     ) {
         tools.forEach { (name, icon) ->
