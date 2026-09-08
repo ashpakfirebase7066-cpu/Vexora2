@@ -40,6 +40,7 @@ private val Bg = Color(0xFF111216)
 private val Panel = Color(0xFF191A20)
 private val Panel2 = Color(0xFF24252C)
 private val Accent = Color(0xFF8B5CF6)
+private val TimelineAccent = Color(0xFFE6C84A)
 private val PrimaryText = Color(0xFFF4F4F6)
 private val SecondaryText = Color(0xFF9799A5)
 
@@ -88,12 +89,16 @@ private fun VexoraEditor() {
             },
             onLeft = {
                 if (selected > 0) {
-                    val x = clips.removeAt(selected); clips.add(selected - 1, x); selected--
+                    val x = clips.removeAt(selected)
+                    clips.add(selected - 1, x)
+                    selected--
                 }
             },
             onRight = {
                 if (selected in 0 until clips.lastIndex) {
-                    val x = clips.removeAt(selected); clips.add(selected + 1, x); selected++
+                    val x = clips.removeAt(selected)
+                    clips.add(selected + 1, x)
+                    selected++
                 }
             }
         )
@@ -105,14 +110,24 @@ private fun VexoraEditor() {
 
 @Composable
 private fun EditorTopBar(onMedia: () -> Unit) {
-    Row(Modifier.fillMaxWidth().height(56.dp).background(Color(0xFF15161A)).padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+    Row(
+        Modifier.fillMaxWidth().height(56.dp).background(Color(0xFF15161A)).padding(horizontal = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
         IconButton(onClick = {}) { Icon(Icons.Default.ArrowBack, "Back", tint = PrimaryText) }
         Icon(Icons.Default.FolderOpen, "Project", tint = SecondaryText)
         Text("Vexora 2", color = PrimaryText, fontWeight = FontWeight.Bold, modifier = Modifier.padding(start = 10.dp).weight(1f))
         Text("Original", color = PrimaryText, fontSize = 12.sp)
         IconButton(onClick = {}) { Icon(Icons.Default.MoreHoriz, "More", tint = SecondaryText) }
-        Button(onClick = onMedia, colors = ButtonDefaults.buttonColors(containerColor = Accent), shape = RoundedCornerShape(8.dp), contentPadding = PaddingValues(horizontal = 12.dp)) {
-            Icon(Icons.Default.Add, "Media", Modifier.size(18.dp)); Spacer(Modifier.width(4.dp)); Text("Media", fontSize = 12.sp)
+        Button(
+            onClick = onMedia,
+            colors = ButtonDefaults.buttonColors(containerColor = Accent),
+            shape = RoundedCornerShape(8.dp),
+            contentPadding = PaddingValues(horizontal = 12.dp)
+        ) {
+            Icon(Icons.Default.Add, "Media", Modifier.size(18.dp))
+            Spacer(Modifier.width(4.dp))
+            Text("Media", fontSize = 12.sp)
         }
     }
 }
@@ -123,24 +138,33 @@ private fun Preview(clip: Clip?) {
         when {
             clip == null -> Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Icon(Icons.Default.VideoLibrary, null, tint = SecondaryText, modifier = Modifier.size(46.dp))
-                Spacer(Modifier.height(8.dp)); Text("Add image or video to start", color = SecondaryText, fontSize = 13.sp)
+                Spacer(Modifier.height(8.dp))
+                Text("Add image or video to start", color = SecondaryText, fontSize = 13.sp)
             }
             clip.video -> VideoPlayer(clip.uri)
             else -> AsyncImage(clip.uri, "Image preview", Modifier.fillMaxSize().padding(8.dp), contentScale = ContentScale.Fit)
         }
         if (clip != null) {
-            IconButton(onClick = {}, modifier = Modifier.align(Alignment.BottomCenter).background(Color.Black.copy(.55f), RoundedCornerShape(50))) {
-                Icon(Icons.Default.PlayArrow, "Play", tint = Color.White)
-            }
+            IconButton(
+                onClick = {},
+                modifier = Modifier.align(Alignment.BottomCenter).background(Color.Black.copy(.55f), RoundedCornerShape(50))
+            ) { Icon(Icons.Default.PlayArrow, "Play", tint = Color.White) }
         }
-        IconButton(onClick = {}, modifier = Modifier.align(Alignment.BottomEnd)) { Icon(Icons.Default.Fullscreen, "Fullscreen", tint = Color.White) }
+        IconButton(onClick = {}, modifier = Modifier.align(Alignment.BottomEnd)) {
+            Icon(Icons.Default.Fullscreen, "Fullscreen", tint = Color.White)
+        }
     }
 }
 
 @Composable
 private fun VideoPlayer(uri: Uri) {
     val context = LocalContext.current
-    val player = remember(uri) { ExoPlayer.Builder(context).build().apply { setMediaItem(MediaItem.fromUri(uri)); prepare() } }
+    val player = remember(uri) {
+        ExoPlayer.Builder(context).build().apply {
+            setMediaItem(MediaItem.fromUri(uri))
+            prepare()
+        }
+    }
     DisposableEffect(player) { onDispose { player.release() } }
     AndroidView(
         factory = { PlayerView(it).apply { this.player = player; useController = true } },
@@ -151,63 +175,247 @@ private fun VideoPlayer(uri: Uri) {
 
 @Composable
 private fun TimeRow(total: Long) {
-    Row(Modifier.fillMaxWidth().height(42.dp).padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+    Row(
+        Modifier.fillMaxWidth().height(42.dp).padding(horizontal = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
         Text("00:00 / ${time(total)}", color = PrimaryText, fontSize = 12.sp)
         Spacer(Modifier.weight(1f))
         Icon(Icons.Default.Tune, "Adjust", tint = SecondaryText, modifier = Modifier.size(20.dp))
-        Spacer(Modifier.width(14.dp)); Icon(Icons.Default.Undo, "Undo", tint = SecondaryText, modifier = Modifier.size(20.dp)); Spacer(Modifier.width(14.dp)); Icon(Icons.Default.Redo, "Redo", tint = SecondaryText, modifier = Modifier.size(20.dp))
+        Spacer(Modifier.width(14.dp))
+        Icon(Icons.Default.Undo, "Undo", tint = SecondaryText, modifier = Modifier.size(20.dp))
+        Spacer(Modifier.width(14.dp))
+        Icon(Icons.Default.Redo, "Redo", tint = SecondaryText, modifier = Modifier.size(20.dp))
     }
 }
 
+/**
+ * Multi-track timeline inspired by the reference editor layout:
+ * a fixed track-control column on the left and horizontally scrolling
+ * lanes for music, subtitles, overlays and the main media track.
+ */
 @Composable
-private fun Timeline(clips: List<Clip>, selected: Int, onSelect: (Int) -> Unit, onAdd: () -> Unit, onDelete: () -> Unit, onLeft: () -> Unit, onRight: () -> Unit) {
+private fun Timeline(
+    clips: List<Clip>,
+    selected: Int,
+    onSelect: (Int) -> Unit,
+    onAdd: () -> Unit,
+    onDelete: () -> Unit,
+    onLeft: () -> Unit,
+    onRight: () -> Unit
+) {
+    val timelineScroll = rememberScrollState()
+    val totalDuration = clips.sumOf { it.duration }.coerceAtLeast(3000L)
+    val pixelsPerSecond = 55f
+    val contentWidth = (totalDuration / 1000f * pixelsPerSecond).coerceAtLeast(360f)
+
     Column(Modifier.fillMaxWidth().height(300.dp).background(Color(0xFF15161A))) {
-        Row(Modifier.fillMaxWidth().height(42.dp).padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-            TimelineAction(Icons.Default.LibraryMusic, "Music"); TimelineAction(Icons.Default.TextFields, "Text"); TimelineAction(Icons.Default.Image, "Overlay"); TimelineAction(Icons.Default.VideoLibrary, "Clip")
-            Spacer(Modifier.weight(1f)); IconButton(onClick = onLeft, enabled = selected > 0) { Icon(Icons.Default.ArrowBack, "Move left", tint = SecondaryText) }; IconButton(onClick = onRight, enabled = selected >= 0 && selected < clips.lastIndex) { Icon(Icons.Default.ArrowForward, "Move right", tint = SecondaryText) }; IconButton(onClick = onDelete, enabled = selected >= 0) { Icon(Icons.Default.Delete, "Delete", tint = Color(0xFFE56B73)) }
+        // Compact timeline controls, matching the reference editor's header row.
+        Row(
+            Modifier.fillMaxWidth().height(36.dp).background(Color(0xFF121318)),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text("TRACKS", color = SecondaryText, fontSize = 8.sp, modifier = Modifier.width(76.dp).padding(start = 12.dp))
+            Spacer(Modifier.weight(1f))
+            IconButton(onClick = onLeft, enabled = selected > 0, modifier = Modifier.size(34.dp)) {
+                Icon(Icons.Default.ArrowBack, "Move left", tint = if (selected > 0) PrimaryText else Color(0xFF4B4C55), modifier = Modifier.size(17.dp))
+            }
+            IconButton(onClick = onRight, enabled = selected >= 0 && selected < clips.lastIndex, modifier = Modifier.size(34.dp)) {
+                Icon(Icons.Default.ArrowForward, "Move right", tint = if (selected >= 0 && selected < clips.lastIndex) PrimaryText else Color(0xFF4B4C55), modifier = Modifier.size(17.dp))
+            }
+            IconButton(onClick = onDelete, enabled = selected >= 0, modifier = Modifier.size(34.dp)) {
+                Icon(Icons.Default.Delete, "Delete", tint = if (selected >= 0) Color(0xFFE56B73) else Color(0xFF4B4C55), modifier = Modifier.size(17.dp))
+            }
+            Spacer(Modifier.width(5.dp))
         }
-        Row(Modifier.fillMaxWidth().height(112.dp).padding(start = 76.dp, end = 10.dp).horizontalScroll(rememberScrollState()), verticalAlignment = Alignment.CenterVertically) {
-            if (clips.isEmpty()) {
-                Box(Modifier.width(320.dp).height(76.dp).border(1.dp, Color(0xFF383942), RoundedCornerShape(6.dp)).clickable(onClick = onAdd), contentAlignment = Alignment.Center) {
-                    Row(verticalAlignment = Alignment.CenterVertically) { Icon(Icons.Default.Add, null, tint = SecondaryText); Spacer(Modifier.width(8.dp)); Text("Tap to add photo or video", color = SecondaryText, fontSize = 12.sp) }
+
+        Row(Modifier.fillMaxWidth().height(264.dp)) {
+            // Fixed left-side track controls.
+            Column(
+                Modifier.width(76.dp).fillMaxHeight().background(Color(0xFF17181D)),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                TrackButton(Icons.Default.LibraryMusic, "Music")
+                TrackButton(Icons.Default.TextFields, "Subtitle")
+                TrackButton(Icons.Default.Image, "Overlay")
+                TrackButton(Icons.Default.VideoLibrary, "Video")
+                TrackButton(Icons.Default.VolumeUp, "Audio")
+                Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                    Text("Cover", color = SecondaryText, fontSize = 8.sp)
                 }
-            } else {
-                clips.forEachIndexed { i, clip -> ClipCard(clip, i == selected) { onSelect(i) } }
-                Box(Modifier.padding(start = 6.dp).size(82.dp, 76.dp).border(1.dp, Color(0xFF383942), RoundedCornerShape(6.dp)).clickable(onClick = onAdd), contentAlignment = Alignment.Center) { Icon(Icons.Default.Add, "Add", tint = SecondaryText, modifier = Modifier.size(30.dp)) }
+            }
+
+            // The lanes share one horizontal scroll position, like a real editor timeline.
+            Column(
+                Modifier.fillMaxHeight().weight(1f).horizontalScroll(timelineScroll)
+            ) {
+                TimelineLane(height = 44.dp, contentWidth = contentWidth, hint = "Tap to add music", icon = Icons.Default.Add)
+                TimelineLane(height = 44.dp, contentWidth = contentWidth, hint = "Tap to add subtitle", icon = Icons.Default.Add)
+                TimelineLane(height = 44.dp, contentWidth = contentWidth, hint = "Tap to add sticker / overlay", icon = Icons.Default.Add)
+                MainMediaLane(clips, selected, onSelect, onAdd, contentWidth)
+                Row(
+                    Modifier.width(contentWidth.dp).height(36.dp).background(Color(0xFF15161A)),
+                    verticalAlignment = Alignment.Top
+                ) {
+                    if (clips.isNotEmpty()) {
+                        var elapsed = 0L
+                        clips.forEach { clip ->
+                            val w = (clip.duration / 1000f * pixelsPerSecond).coerceIn(58f, 360f)
+                            Box(Modifier.width(w.dp).padding(top = 3.dp)) {
+                                Text(time(elapsed), color = SecondaryText, fontSize = 8.sp)
+                                elapsed += clip.duration
+                            }
+                        }
+                    } else {
+                        Text("00:00", color = SecondaryText, fontSize = 8.sp, modifier = Modifier.padding(top = 3.dp))
+                    }
+                }
             }
         }
-        Row(Modifier.fillMaxWidth().padding(start = 76.dp, end = 10.dp), horizontalArrangement = Arrangement.spacedBy(18.dp)) { clips.forEach { Text(time(it.duration), color = SecondaryText, fontSize = 9.sp) } }
     }
 }
 
 @Composable
-private fun TimelineAction(icon: ImageVector, label: String) {
-    Column(Modifier.width(62.dp), horizontalAlignment = Alignment.CenterHorizontally) { Icon(icon, label, tint = SecondaryText, modifier = Modifier.size(19.dp)); Text(label, color = SecondaryText, fontSize = 8.sp) }
+private fun TrackButton(icon: ImageVector, label: String) {
+    Box(
+        Modifier.fillMaxWidth().height(44.dp).border(0.5.dp, Color(0xFF24252C)),
+        contentAlignment = Alignment.Center
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(icon, label, tint = SecondaryText, modifier = Modifier.size(18.dp))
+            Box(
+                Modifier.padding(start = 2.dp).size(13.dp).background(Color(0xFF2C2D34), RoundedCornerShape(50)),
+                contentAlignment = Alignment.Center
+            ) { Icon(Icons.Default.Add, "Add $label", tint = PrimaryText, modifier = Modifier.size(11.dp)) }
+        }
+    }
 }
 
 @Composable
-private fun ClipCard(clip: Clip, selected: Boolean, onClick: () -> Unit) {
-    Box(Modifier.padding(end = 3.dp).size(112.dp, 76.dp).clip(RoundedCornerShape(5.dp)).border(if (selected) 2.dp else 1.dp, if (selected) Accent else Color(0xFF3B3C45), RoundedCornerShape(5.dp)).background(Panel2).clickable(onClick = onClick), contentAlignment = Alignment.Center) {
+private fun TimelineLane(height: androidx.compose.ui.unit.Dp, contentWidth: Float, hint: String, icon: ImageVector) {
+    Box(
+        Modifier.width(contentWidth.dp).height(height).border(0.5.dp, Color(0xFF2A2B32)),
+        contentAlignment = Alignment.CenterStart
+    ) {
+        Box(
+            Modifier.padding(start = 8.dp).width(208.dp).height(30.dp).background(Color(0xFF24262D), RoundedCornerShape(3.dp)),
+            contentAlignment = Alignment.CenterStart
+        ) {
+            Icon(icon, null, tint = SecondaryText, modifier = Modifier.padding(start = 7.dp).size(15.dp))
+            Text(hint, color = Color(0xFF777984), fontSize = 10.sp, modifier = Modifier.padding(start = 28.dp))
+        }
+    }
+}
+
+@Composable
+private fun MainMediaLane(
+    clips: List<Clip>,
+    selected: Int,
+    onSelect: (Int) -> Unit,
+    onAdd: () -> Unit,
+    contentWidth: Float
+) {
+    Box(
+        Modifier.width(contentWidth.dp).height(96.dp).background(Color(0xFF1B1C22)).border(0.5.dp, Color(0xFF34353D))
+    ) {
+        if (clips.isEmpty()) {
+            Box(
+                Modifier.padding(start = 8.dp, top = 10.dp).width(280.dp).height(74.dp)
+                    .border(1.dp, Color(0xFF3B3C45), RoundedCornerShape(5.dp)).clickable(onClick = onAdd),
+                contentAlignment = Alignment.Center
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.Add, null, tint = SecondaryText)
+                    Spacer(Modifier.width(8.dp))
+                    Text("Tap to add photo or video", color = SecondaryText, fontSize = 11.sp)
+                }
+            }
+        } else {
+            Row(Modifier.fillMaxHeight().padding(start = 8.dp, top = 10.dp, bottom = 10.dp)) {
+                clips.forEachIndexed { index, clip ->
+                    val width = (clip.duration / 1000f * 55f).coerceIn(58f, 360f)
+                    TimelineClip(clip, index == selected, width.dp) { onSelect(index) }
+                }
+                Box(
+                    Modifier.padding(start = 6.dp).width(58.dp).fillMaxHeight()
+                        .border(1.dp, Color(0xFF3B3C45), RoundedCornerShape(5.dp)).clickable(onClick = onAdd),
+                    contentAlignment = Alignment.Center
+                ) { Icon(Icons.Default.Add, "Add media", tint = SecondaryText, modifier = Modifier.size(28.dp)) }
+            }
+        }
+    }
+}
+
+@Composable
+private fun TimelineClip(clip: Clip, selected: Boolean, width: androidx.compose.ui.unit.Dp, onClick: () -> Unit) {
+    Box(
+        Modifier.padding(end = 3.dp).width(width).fillMaxHeight().clip(RoundedCornerShape(4.dp))
+            .border(if (selected) 2.dp else 1.dp, if (selected) TimelineAccent else Color(0xFF3B3C45), RoundedCornerShape(4.dp))
+            .background(Panel2).clickable(onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
         if (clip.video) {
-            Icon(Icons.Default.VideoLibrary, null, tint = Color.White, modifier = Modifier.size(28.dp)); Text("VIDEO", color = Color.White, fontSize = 8.sp, modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 7.dp))
-        } else AsyncImage(clip.uri, "Timeline image", Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
-        Text(time(clip.duration), color = Color.White, fontSize = 8.sp, modifier = Modifier.align(Alignment.BottomEnd).background(Color.Black.copy(.65f)).padding(3.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(3.dp), verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.VideoLibrary, null, tint = Color.White, modifier = Modifier.size(22.dp))
+                Text("VIDEO", color = Color.White, fontSize = 8.sp, fontWeight = FontWeight.Bold)
+            }
+        } else {
+            AsyncImage(clip.uri, "Timeline image", Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+        }
+        Text(
+            time(clip.duration),
+            color = Color.White,
+            fontSize = 8.sp,
+            modifier = Modifier.align(Alignment.BottomEnd).background(Color.Black.copy(.7f)).padding(horizontal = 4.dp, vertical = 2.dp)
+        )
     }
 }
 
 @Composable
 private fun BottomTools(onMedia: () -> Unit, onTool: (String) -> Unit) {
-    val tools = listOf("Media" to Icons.Default.VideoLibrary, "Trim" to Icons.Default.Crop, "Split" to Icons.Default.ContentCut, "Speed" to Icons.Default.Speed, "Volume" to Icons.Default.VolumeUp, "Text" to Icons.Default.TextFields, "Audio" to Icons.Default.AudioFile, "Filter" to Icons.Default.FilterAlt, "Flip" to Icons.Default.Flip, "Mosaic" to Icons.Default.GridOn, "Record" to Icons.Default.Mic)
-    Row(Modifier.fillMaxWidth().height(82.dp).background(Color(0xFF121318)).horizontalScroll(rememberScrollState()), verticalAlignment = Alignment.CenterVertically) {
-        tools.forEach { (name, icon) -> Column(Modifier.width(70.dp).clickable { if (name == "Media") onMedia() else onTool(name) }, horizontalAlignment = Alignment.CenterHorizontally) { Icon(icon, name, tint = if (name == "Media") Color.White else SecondaryText, modifier = Modifier.size(25.dp)); Spacer(Modifier.height(4.dp)); Text(name, color = if (name == "Media") Color.White else SecondaryText, fontSize = 10.sp) } }
+    val tools = listOf(
+        "Media" to Icons.Default.VideoLibrary,
+        "Trim" to Icons.Default.Crop,
+        "Split" to Icons.Default.ContentCut,
+        "Speed" to Icons.Default.Speed,
+        "Volume" to Icons.Default.VolumeUp,
+        "Text" to Icons.Default.TextFields,
+        "Audio" to Icons.Default.AudioFile,
+        "Filter" to Icons.Default.FilterAlt,
+        "Flip" to Icons.Default.Flip,
+        "Mosaic" to Icons.Default.GridOn,
+        "Record" to Icons.Default.Mic
+    )
+    Row(
+        Modifier.fillMaxWidth().height(82.dp).background(Color(0xFF121318)).horizontalScroll(rememberScrollState()),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        tools.forEach { (name, icon) ->
+            Column(
+                Modifier.width(70.dp).clickable { if (name == "Media") onMedia() else onTool(name) },
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Icon(icon, name, tint = if (name == "Media") Color.White else SecondaryText, modifier = Modifier.size(25.dp))
+                Spacer(Modifier.height(4.dp))
+                Text(name, color = if (name == "Media") Color.White else SecondaryText, fontSize = 10.sp)
+            }
+        }
     }
 }
 
 private fun videoDuration(context: Context, uri: Uri): Long {
     val r = MediaMetadataRetriever()
-    return try { r.setDataSource(context, uri); r.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull() ?: 3000L } catch (_: Exception) { 3000L } finally { r.release() }
+    return try {
+        r.setDataSource(context, uri)
+        r.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull() ?: 3000L
+    } catch (_: Exception) {
+        3000L
+    } finally {
+        r.release()
+    }
 }
 
 private fun time(ms: Long): String {
-    val s = (ms / 1000).coerceAtLeast(0); return "%02d:%02d".format(s / 60, s % 60)
+    val s = (ms / 1000).coerceAtLeast(0)
+    return "%02d:%02d".format(s / 60, s % 60)
 }
