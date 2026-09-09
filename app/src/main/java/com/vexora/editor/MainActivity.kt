@@ -491,6 +491,13 @@ private fun TimelineClip(
     onDuplicate: () -> Unit,
     onAction: (String) -> Unit
 ) {
+    var handleVisible by remember(clip.id) { mutableStateOf(false) }
+
+    // Reset the visual handle whenever this clip is no longer selected.
+    LaunchedEffect(selected) {
+        if (!selected) handleVisible = false
+    }
+
     Box(
         Modifier.width(width).fillMaxHeight().padding(end = 3.dp),
         contentAlignment = Alignment.Center
@@ -539,18 +546,24 @@ private fun TimelineClip(
             )
         }
 
-        if (onResize != null) {
+        if (onResize != null && selected) {
+            // Invisible tap/drag target is inside the clip edge; the actual chevron is drawn
+            // completely outside the image strip so it never covers a thumbnail.
             Box(
                 Modifier.align(Alignment.CenterEnd)
-                    .offset(x = 18.dp)
-                    .offset(x = 18.dp)
-                    .width(18.dp).fillMaxHeight()
+                    .width(24.dp)
+                    .fillMaxHeight()
+                    .clickable { handleVisible = true }
                     .pointerInput(clip.id) {
                         var pendingPx = 0f
                         detectDragGestures(
-                            onDragStart = { pendingPx = 0f },
+                            onDragStart = {
+                                pendingPx = 0f
+                                handleVisible = true
+                            },
                             onDrag = { change, dragAmount ->
                                 change.consume()
+                                handleVisible = true
                                 pendingPx += dragAmount.x
                                 val wholeSeconds = (pendingPx / 55f).toInt()
                                 if (wholeSeconds != 0) {
@@ -562,18 +575,29 @@ private fun TimelineClip(
                             onDragCancel = { pendingPx = 0f }
                         )
                     },
-                contentAlignment = Alignment.Center
+                contentAlignment = Alignment.CenterEnd
             ) {
-                Box(
-                    Modifier.width(5.dp).fillMaxHeight().padding(vertical = 8.dp)
-                        .background(TimelineAccent, RoundedCornerShape(4.dp))
-                )
-                Icon(
-                    Icons.Default.ChevronRight,
-                    "Drag to extend image duration",
-                    tint = Color.Black,
-                    modifier = Modifier.size(16.dp)
-                )
+                if (handleVisible) {
+                    Box(
+                        Modifier
+                            .offset(x = 18.dp)
+                            .width(18.dp)
+                            .fillMaxHeight()
+                            .zIndex(10f),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Box(
+                            Modifier.width(5.dp).fillMaxHeight().padding(vertical = 8.dp)
+                                .background(TimelineAccent, RoundedCornerShape(4.dp))
+                        )
+                        Icon(
+                            Icons.Default.ChevronRight,
+                            "Drag to extend image duration",
+                            tint = Color.Black,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                }
             }
         }
     }
