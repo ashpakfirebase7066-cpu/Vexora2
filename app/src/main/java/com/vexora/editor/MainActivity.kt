@@ -510,7 +510,17 @@ private fun TimelineClip(
                 Text("VIDEO", color = Color.White, fontSize = 8.sp, fontWeight = FontWeight.Bold)
             }
         } else {
-            AsyncImage(clip.uri, "Timeline image", Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
+            Row(Modifier.fillMaxSize()) {
+                val thumbnailCount = max(1, kotlin.math.ceil(clip.duration / 1000.0).toInt())
+                repeat(thumbnailCount) {
+                    AsyncImage(
+                        clip.uri,
+                        "Timeline image thumbnail",
+                        Modifier.width(55.dp).fillMaxHeight(),
+                        contentScale = ContentScale.Crop
+                    )
+                }
+            }
         }
         Text(
             time(clip.duration),
