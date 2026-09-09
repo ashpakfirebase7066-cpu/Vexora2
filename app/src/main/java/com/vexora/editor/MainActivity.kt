@@ -541,8 +541,6 @@ private fun TimelineClip(
         }
 
         if (onResize != null && selected) {
-            // Touch area stays at the clip edge. The visual handle overlays the last
-            // part of the thumbnail and is directly attached to the image edge.
             Box(
                 Modifier.align(Alignment.CenterEnd)
                     .width(24.dp)
@@ -570,7 +568,7 @@ private fun TimelineClip(
                 if (toolbarVisible) {
                     Box(
                         Modifier
-                            .offset(x = -5.dp)
+                            .offset(x = 13.dp)
                             .width(34.dp)
                             .fillMaxHeight(),
                         contentAlignment = Alignment.Center
