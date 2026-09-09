@@ -24,6 +24,23 @@ s = s.replace(
     'val contentWidth = (totalDuration / 1000f * pixelsPerSecond + 70f).coerceAtLeast(360f)'
 )
 
+# Repeat the same image thumbnail across the full image duration instead of fitting
+# one image into the whole clip. Each thumbnail represents roughly one second.
+old_image = '''            AsyncImage(clip.uri, "Timeline image", Modifier.fillMaxSize(), contentScale = ContentScale.Fit)'''
+new_image = '''            Row(Modifier.fillMaxSize()) {
+                val thumbnailCount = max(1, kotlin.math.ceil(clip.duration / 1000.0).toInt())
+                repeat(thumbnailCount) {
+                    AsyncImage(
+                        clip.uri,
+                        "Timeline image thumbnail",
+                        Modifier.width(55.dp).fillMaxHeight(),
+                        contentScale = ContentScale.Crop
+                    )
+                }
+            }'''
+if old_image in s:
+    s = s.replace(old_image, new_image)
+
 # Full 0-second through project-end ruler.
 pattern = r'@Composable\nprivate fun TimeMarkers\(clips: List<Clip>, contentWidth: Float, pixelsPerSecond: Float\) \{.*?\n\}\n\n@Composable\nprivate fun BottomTools'
 replacement = '''@Composable
