@@ -495,47 +495,57 @@ private fun TimelineClip(
     onResize: ((Float) -> Unit)?
 ) {
     Box(
-        Modifier.padding(end = 3.dp).width(width).fillMaxHeight().clip(RoundedCornerShape(4.dp))
-            .border(
-                if (selected) 2.dp else 1.dp,
-                if (selected) TimelineAccent else Color(0xFF3B3C45),
-                RoundedCornerShape(4.dp)
-            )
-            .background(Panel2)
-            .clickable(onClick = onClick),
+        Modifier.width(width).fillMaxHeight().padding(end = 3.dp),
         contentAlignment = Alignment.Center
     ) {
-        if (clip.video) {
-            Row(horizontalArrangement = Arrangement.spacedBy(3.dp), verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Default.VideoLibrary, null, tint = Color.White, modifier = Modifier.size(22.dp))
-                Text("VIDEO", color = Color.White, fontSize = 8.sp, fontWeight = FontWeight.Bold)
-            }
-        } else {
-            Row(Modifier.fillMaxSize()) {
-                val thumbnailCount = max(1, kotlin.math.ceil(clip.duration / 1000.0).toInt())
-                repeat(thumbnailCount) {
-                    AsyncImage(
-                        clip.uri,
-                        "Timeline image thumbnail",
-                        Modifier.width(55.dp).fillMaxHeight(),
-                        contentScale = ContentScale.Crop
-                    )
+        Box(
+            Modifier.fillMaxSize().clip(RoundedCornerShape(4.dp))
+                .border(
+                    if (selected) 2.dp else 1.dp,
+                    if (selected) TimelineAccent else Color(0xFF3B3C45),
+                    RoundedCornerShape(4.dp)
+                )
+                .background(Panel2)
+                .clickable(onClick = onClick)
+        ) {
+            if (clip.video) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(3.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxSize()
+                ) {
+                    Icon(Icons.Default.VideoLibrary, null, tint = Color.White, modifier = Modifier.size(22.dp))
+                    Text("VIDEO", color = Color.White, fontSize = 8.sp, fontWeight = FontWeight.Bold)
+                }
+            } else {
+                Row(Modifier.fillMaxSize()) {
+                    val thumbnailCount = max(1, kotlin.math.ceil(clip.duration / 1000.0).toInt())
+                    repeat(thumbnailCount) {
+                        AsyncImage(
+                            clip.uri,
+                            "Timeline image thumbnail",
+                            Modifier.width(55.dp).fillMaxHeight(),
+                            contentScale = ContentScale.Crop
+                        )
+                    }
                 }
             }
+
+            Text(
+                time(clip.duration),
+                color = Color.White,
+                fontSize = 8.sp,
+                modifier = Modifier.align(Alignment.BottomEnd)
+                    .background(Color.Black.copy(.65f))
+                    .padding(3.dp)
+            )
         }
-        Text(
-            time(clip.duration),
-            color = Color.White,
-            fontSize = 8.sp,
-            modifier = Modifier.align(Alignment.BottomEnd)
-                .background(Color.Black.copy(.65f))
-                .padding(3.dp)
-        )
 
         if (onResize != null) {
             Box(
                 Modifier.align(Alignment.CenterEnd)
-                    .width(24.dp).fillMaxHeight()
+                    .offset(x = 9.dp)
+                    .width(18.dp).fillMaxHeight()
                     .pointerInput(clip.id) {
                         detectDragGestures(
                             onDrag = { change, dragAmount ->
@@ -547,12 +557,12 @@ private fun TimelineClip(
                 contentAlignment = Alignment.Center
             ) {
                 Box(
-                    Modifier.width(6.dp).fillMaxHeight().padding(vertical = 8.dp)
+                    Modifier.width(5.dp).fillMaxHeight().padding(vertical = 8.dp)
                         .background(TimelineAccent, RoundedCornerShape(4.dp))
                 )
                 Icon(
                     Icons.Default.ChevronRight,
-                    "Drag to change image duration",
+                    "Drag to extend image duration",
                     tint = Color.Black,
                     modifier = Modifier.size(16.dp)
                 )
