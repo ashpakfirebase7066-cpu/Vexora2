@@ -570,7 +570,7 @@ private fun TimelineClip(
                 if (toolbarVisible) {
                     Box(
                         Modifier
-                            .offset(x = 0.dp)
+                            .offset(x = -5.dp)
                             .width(34.dp)
                             .fillMaxHeight(),
                         contentAlignment = Alignment.Center
