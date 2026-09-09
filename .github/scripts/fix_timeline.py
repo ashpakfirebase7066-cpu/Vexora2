@@ -20,25 +20,21 @@ new_image = '''            Row(Modifier.fillMaxSize()) {
 if old_image in s:
     s = s.replace(old_image, new_image)
 
-# Exact 55dp per second clip scale.
 s = s.replace(
     'val width = (clip.duration / 1000f * 55f).coerceIn(58f, 360f)',
     'val width = (clip.duration / 1000f * 55f).coerceAtLeast(1f)'
 )
 
-# Keep toolbar aligned to clip start.
 s = s.replace(
     'val toolbarStartPx = 8f + clips.take(selected).sumOf {\n                    (it.duration / 1000f * 55f).coerceIn(58f, 360f).toDouble()\n                }.toFloat()',
     'val toolbarStartPx = 8f + clips.take(selected).sumOf {\n                    (it.duration / 1000f * 55f).coerceAtLeast(1f).toDouble()\n                }.toFloat()'
 )
 
-# Timeline content follows the real duration scale.
 s = s.replace(
     'val contentWidth = (totalDuration / 1000f * pixelsPerSecond + 70f).coerceAtLeast(360f)',
     'val contentWidth = (totalDuration / 1000f * pixelsPerSecond + 8f).coerceAtLeast(360f)'
 )
 
-# Whole-second duration keeps ruler, thumbnail count and visible duration consistent.
 old_resize = '''    fun updateSelectedDuration(newDuration: Long) {
         if (selected in clips.indices) {
             val old = clips[selected]
@@ -55,9 +51,7 @@ new_resize = '''    fun updateSelectedDuration(newDuration: Long) {
 if old_resize in s:
     s = s.replace(old_resize, new_resize)
 
-# Replace TimelineClip so the resize arrow is visually outside the image and hidden by default.
-# The transparent hit zone stays inside the clip's right edge, so it can be tapped even while the
-# visual arrow is hidden/outside the clip. Tapping the zone reveals the arrow; dragging resizes.
+# Replace TimelineClip so the resize arrow is hidden until its right-edge hit area is tapped.
 timeline_pattern = r'@Composable\nprivate fun TimelineClip\(.*?\n\}\n\n@Composable\nprivate fun TimeMarkers'
 timeline_replacement = '''@Composable
 private fun TimelineClip(
@@ -72,7 +66,6 @@ private fun TimelineClip(
 ) {
     var handleVisible by remember(clip.id) { mutableStateOf(false) }
 
-    // Reset the visual handle whenever this clip is no longer selected.
     LaunchedEffect(selected) {
         if (!selected) handleVisible = false
     }
@@ -126,8 +119,7 @@ private fun TimelineClip(
         }
 
         if (onResize != null && selected) {
-            // Invisible tap/drag target is inside the clip edge; the actual chevron is drawn
-            // completely outside the image strip so it never covers a thumbnail.
+            // Hit area is inside the clip; visual arrow is outside the image strip.
             Box(
                 Modifier.align(Alignment.CenterEnd)
                     .width(24.dp)
@@ -161,8 +153,7 @@ private fun TimelineClip(
                         Modifier
                             .offset(x = 18.dp)
                             .width(18.dp)
-                            .fillMaxHeight()
-                            .zIndex(10f),
+                            .fillMaxHeight(),
                         contentAlignment = Alignment.Center
                     ) {
                         Box(
@@ -188,7 +179,6 @@ s, count = re.subn(timeline_pattern, timeline_replacement, s, flags=re.S)
 if count != 1:
     raise SystemExit(f"Expected one TimelineClip function, found {count}")
 
-# Continuous ruler from 0s through the project duration.
 pattern = r'@Composable\nprivate fun TimeMarkers\(clips: List<Clip>, contentWidth: Float, pixelsPerSecond: Float\) \{.*?\n\}\n\n@Composable\nprivate fun BottomTools'
 replacement = '''@Composable
 private fun TimeMarkers(clips: List<Clip>, contentWidth: Float, pixelsPerSecond: Float) {
