@@ -1,0 +1,94 @@
+name: Fix selection toolbar
+
+on:
+  push:
+    paths:
+      - '.github/workflows/fix-selection-toolbar.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Patch MainActivity
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('app/src/main/java/com/vexora/editor/MainActivity.kt')
+          s = p.read_text()
+
+          old = '''    var selected by remember { mutableIntStateOf(-1) }\n    var nextId by remember { mutableIntStateOf(1) }'''
+          new = '''    var selected by remember { mutableIntStateOf(-1) }\n    var toolbarVisible by remember { mutableStateOf(false) }\n    var nextId by remember { mutableIntStateOf(1) }'''
+          assert old in s
+          s = s.replace(old, new, 1)
+
+          old = '''        if (selected < 0 && clips.isNotEmpty()) selected = 0'''
+          new = '''        if (selected < 0 && clips.isNotEmpty()) selected = 0'''
+          assert old in s
+
+          old = '''            onSelect = { selected = it },'''
+          new = '''            onSelect = { index ->\n                if (selected == index) {\n                    toolbarVisible = !toolbarVisible\n                } else {\n                    selected = index\n                    toolbarVisible = true\n                }\n            },'''
+          assert old in s
+          s = s.replace(old, new, 1)
+
+          old = '''                    clips.removeAt(selected)\n                    selected = if (clips.isEmpty()) -1 else selected.coerceAtMost(clips.lastIndex)'''
+          new = '''                    clips.removeAt(selected)\n                    selected = if (clips.isEmpty()) -1 else selected.coerceAtMost(clips.lastIndex)\n                    toolbarVisible = false'''
+          assert old in s
+          s = s.replace(old, new, 1)
+
+          old = '''            onRight = {\n                if (selected in 0 until clips.lastIndex) {\n                    val x = clips.removeAt(selected)\n                    clips.add(selected + 1, x)\n                    selected++\n                }\n            }\n        )'''
+          new = '''            onRight = {\n                if (selected in 0 until clips.lastIndex) {\n                    val x = clips.removeAt(selected)\n                    clips.add(selected + 1, x)\n                    selected++\n                }\n            },\n            toolbarVisible = toolbarVisible\n        )'''
+          assert old in s
+          s = s.replace(old, new, 1)
+
+          old = '''    onResize: (Float) -> Unit,\n    onLeft: () -> Unit,\n    onRight: () -> Unit\n) {'''
+          new = '''    onResize: (Float) -> Unit,\n    onLeft: () -> Unit,\n    onRight: () -> Unit,\n    toolbarVisible: Boolean\n) {'''
+          assert old in s
+          s = s.replace(old, new, 1)
+
+          old = '''                        onResize = onResize,\n                        contentWidth = visibleWidth\n                    )'''
+          new = '''                        onResize = onResize,\n                        contentWidth = visibleWidth,\n                        toolbarVisible = toolbarVisible\n                    )'''
+          assert old in s
+          s = s.replace(old, new, 1)
+
+          old = '''    onResize: (Float) -> Unit,\n    contentWidth: Float\n) {'''
+          new = '''    onResize: (Float) -> Unit,\n    contentWidth: Float,\n    toolbarVisible: Boolean\n) {'''
+          assert old in s
+          s = s.replace(old, new, 1)
+
+          old = '''            if (selected in clips.indices) {\n                SelectedClipToolbar(\n                    modifier = Modifier.align(Alignment.TopCenter).offset(y = (-60).dp),\n                    onDuplicate = onDuplicate,\n                    onAction = onAction\n                )\n            }'''
+          new = '''            if (toolbarVisible && selected in clips.indices) {\n                val toolbarStartPx = 8f + clips.take(selected).sumOf {\n                    (it.duration / 1000f * 55f).coerceIn(58f, 360f).toDouble()\n                }.toFloat()\n                SelectedClipToolbar(\n                    modifier = Modifier\n                        .align(Alignment.TopStart)\n                        .offset(x = toolbarStartPx.dp, y = (-62).dp),\n                    onDuplicate = onDuplicate,\n                    onAction = onAction\n                )\n            }'''
+          assert old in s
+          s = s.replace(old, new, 1)
+
+          p.write_text(s)
+          PY
+
+      - name: Verify and build
+        run: |
+          grep -n "toolbarVisible\|toolbarStartPx\|pointerInput(clip.id)" app/src/main/java/com/vexora/editor/MainActivity.kt
+          gradle assembleDebug --stacktrace
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Vexora2-debug-toolbar-fixed
+          path: app/build/outputs/apk/debug/app-debug.apk
+
+      - name: Commit source changes
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add app/src/main/java/com/vexora/editor/MainActivity.kt
+          if ! git diff --cached --quiet; then
+            git commit -m 'Toggle toolbar on clip tap and anchor it to clip start'
+            git push
+          fi
