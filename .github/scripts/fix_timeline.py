@@ -26,8 +26,8 @@ s = s.replace(
 )
 
 s = s.replace(
-    'val toolbarStartPx = 8f + clips.take(selected).sumOf {\n                    (it.duration / 1000f * 55f).coerceIn(58f, 360f).toDouble()\n                }.toFloat()',
-    'val toolbarStartPx = 8f + clips.take(selected).sumOf {\n                    (it.duration / 1000f * 55f).coerceAtLeast(1f).toDouble()\n                }.toFloat()'
+    'val toolbarStartPx = 8f + clips.take(selected).sumOf {\n                (it.duration / 1000f * 55f).coerceIn(58f, 360f).toDouble()\n            }.toFloat()',
+    'val toolbarStartPx = 8f + clips.take(selected).sumOf {\n                (it.duration / 1000f * 55f).coerceAtLeast(1f).toDouble()\n            }.toFloat()'
 )
 
 s = s.replace(
@@ -113,8 +113,8 @@ private fun TimelineClip(
         }
 
         if (onResize != null && selected) {
-            // Keep an invisible touch zone at the right edge, while the visual arrow
-            // is shown/hidden together with the yellow toolbar and sits fully outside the image strip.
+            // Touch area stays at the clip edge. The visual yellow handle is directly
+            // attached to the image edge with zero gap and is controlled by the toolbar toggle.
             Box(
                 Modifier.align(Alignment.CenterEnd)
                     .width(24.dp)
@@ -142,20 +142,20 @@ private fun TimelineClip(
                 if (toolbarVisible) {
                     Box(
                         Modifier
-                            .offset(x = 28.dp)
-                            .width(28.dp)
+                            .offset(x = 24.dp)
+                            .width(34.dp)
                             .fillMaxHeight(),
                         contentAlignment = Alignment.Center
                     ) {
                         Box(
-                            Modifier.width(7.dp).fillMaxHeight().padding(vertical = 6.dp)
+                            Modifier.width(8.dp).fillMaxHeight().padding(vertical = 5.dp)
                                 .background(TimelineAccent, RoundedCornerShape(4.dp))
                         )
                         Icon(
                             Icons.Default.ChevronRight,
                             "Drag to extend image duration",
                             tint = Color.Black,
-                            modifier = Modifier.size(22.dp)
+                            modifier = Modifier.size(24.dp)
                         )
                     }
                 }
