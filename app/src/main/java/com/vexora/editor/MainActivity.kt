@@ -518,13 +518,14 @@ private fun TimelineClip(
                     Text("VIDEO", color = Color.White, fontSize = 8.sp, fontWeight = FontWeight.Bold)
                 }
             } else {
-                Row(Modifier.fillMaxSize()) {
+                Row(Modifier.fillMaxSize().padding(end = 18.dp)) {
                     val thumbnailCount = max(1, kotlin.math.ceil(clip.duration / 1000.0).toInt())
+                    val thumbnailWidth = ((width.value - 18f) / thumbnailCount).coerceAtLeast(1f).dp
                     repeat(thumbnailCount) {
                         AsyncImage(
                             clip.uri,
                             "Timeline image thumbnail",
-                            Modifier.width(55.dp).fillMaxHeight(),
+                            Modifier.width(thumbnailWidth).fillMaxHeight(),
                             contentScale = ContentScale.Crop
                         )
                     }
@@ -544,14 +545,22 @@ private fun TimelineClip(
         if (onResize != null) {
             Box(
                 Modifier.align(Alignment.CenterEnd)
-                    .offset(x = 9.dp)
                     .width(18.dp).fillMaxHeight()
                     .pointerInput(clip.id) {
+                        var pendingPx = 0f
                         detectDragGestures(
+                            onDragStart = { pendingPx = 0f },
                             onDrag = { change, dragAmount ->
                                 change.consume()
-                                onResize(dragAmount.x)
-                            }
+                                pendingPx += dragAmount.x
+                                val wholeSeconds = (pendingPx / 55f).toInt()
+                                if (wholeSeconds != 0) {
+                                    onResize(wholeSeconds * 55f)
+                                    pendingPx -= wholeSeconds * 55f
+                                }
+                            },
+                            onDragEnd = { pendingPx = 0f },
+                            onDragCancel = { pendingPx = 0f }
                         )
                     },
                 contentAlignment = Alignment.Center
