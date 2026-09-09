@@ -1,0 +1,38 @@
+name: Robust toolbar patch
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch source safely
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('app/src/main/java/com/vexora/editor/MainActivity.kt')
+          s=p.read_text()
+          s=s.replace('pointerInput(clip.id, clip.duration)', 'pointerInput(clip.id)')
+          s=s.replace('var selected by remember { mutableIntStateOf(-1) }', 'var selected by remember { mutableIntStateOf(-1) }\n    var toolbarVisible by remember { mutableStateOf(false) }')
+          old='onSelect = { selected = it },'
+          new='onSelect = { index ->\n                if (selected == index) toolbarVisible = !toolbarVisible\n                else { selected = index; toolbarVisible = true }\n            },'
+          s=s.replace(old,new)
+          s=s.replace('contentWidth = visibleWidth\n                    )','contentWidth = visibleWidth\n                    )')
+          p.write_text(s)
+          PY
+          grep -n 'pointerInput(clip.id)' app/src/main/java/com/vexora/editor/MainActivity.kt
+          grep -n 'toolbarVisible' app/src/main/java/com/vexora/editor/MainActivity.kt
+      - name: Build debug APK
+        run: gradle assembleDebug --stacktrace
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Vexora2-debug-apk-toolbar-fix
+          path: app/build/outputs/apk/debug/app-debug.apk
+      - name: Commit
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add app/src/main/java/com/vexora/editor/MainActivity.kt
+          git diff --cached --quiet || (git commit -m 'Fix toolbar toggle and pointer input' && git push)
