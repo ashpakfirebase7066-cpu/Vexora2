@@ -55,16 +55,22 @@ new_resize = '''    fun updateSelectedDuration(newDuration: Long) {
 if old_resize in s:
     s = s.replace(old_resize, new_resize)
 
-# Thumbnail strip uses the FULL clip width. The resize handle is an overlay outside the clip edge.
+# Keep the thumbnail strip full-width. The visual resize handle is drawn outside the clip edge.
 s = s.replace(
     'Row(Modifier.fillMaxSize().padding(end = 18.dp)) {\n                    val thumbnailCount = max(1, kotlin.math.ceil(clip.duration / 1000.0).toInt())\n                    val thumbnailWidth = ((width.value - 18f) / thumbnailCount).coerceAtLeast(1f).dp',
     'Row(Modifier.fillMaxSize()) {\n                    val thumbnailCount = max(1, kotlin.math.ceil(clip.duration / 1000.0).toInt())\n                    val thumbnailWidth = (width.value / thumbnailCount).coerceAtLeast(1f).dp'
 )
 
-# Put the resize handle completely OUTSIDE the selected clip: its left edge starts exactly at the clip's right edge.
+# Put the resize handle completely OUTSIDE the selected clip.
+s = s.replace(
+    '''                    .offset(x = 18.dp)\n                    .width(18.dp).fillMaxHeight()\n                    .zIndex(10f)\n                    .pointerInput(clip.id) {''',
+    '''                    .offset(x = 18.dp)\n                    .width(18.dp).fillMaxHeight()\n                    .pointerInput(clip.id) {'''
+)
+
+# If an older source still has the handle without the external offset, add it.
 s = s.replace(
     '''                    .width(18.dp).fillMaxHeight()\n                    .pointerInput(clip.id) {''',
-    '''                    .offset(x = 18.dp)\n                    .width(18.dp).fillMaxHeight()\n                    .zIndex(10f)\n                    .pointerInput(clip.id) {'''
+    '''                    .offset(x = 18.dp)\n                    .width(18.dp).fillMaxHeight()\n                    .pointerInput(clip.id) {'''
 )
 
 # Continuous ruler from 0s through the project duration.
