@@ -577,7 +577,7 @@ private fun TimelineClip(
                         contentAlignment = Alignment.Center
                     ) {
                         Box(
-                            Modifier.width(8.dp).fillMaxHeight().padding(vertical = 5.dp)
+                            Modifier.width(8.dp).fillMaxHeight()
                                 .background(TimelineAccent, RoundedCornerShape(4.dp))
                         )
                         Icon(
