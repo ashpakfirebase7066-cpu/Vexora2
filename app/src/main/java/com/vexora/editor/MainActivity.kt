@@ -518,9 +518,9 @@ private fun TimelineClip(
                     Text("VIDEO", color = Color.White, fontSize = 8.sp, fontWeight = FontWeight.Bold)
                 }
             } else {
-                Row(Modifier.fillMaxSize().padding(end = 18.dp)) {
+                Row(Modifier.fillMaxSize()) {
                     val thumbnailCount = max(1, kotlin.math.ceil(clip.duration / 1000.0).toInt())
-                    val thumbnailWidth = ((width.value - 18f) / thumbnailCount).coerceAtLeast(1f).dp
+                    val thumbnailWidth = (width.value / thumbnailCount).coerceAtLeast(1f).dp
                     repeat(thumbnailCount) {
                         AsyncImage(
                             clip.uri,
@@ -545,7 +545,9 @@ private fun TimelineClip(
         if (onResize != null) {
             Box(
                 Modifier.align(Alignment.CenterEnd)
+                    .offset(x = 18.dp)
                     .width(18.dp).fillMaxHeight()
+                    .zIndex(10f)
                     .pointerInput(clip.id) {
                         var pendingPx = 0f
                         detectDragGestures(
