@@ -543,6 +543,7 @@ private fun TimelineClip(
             Box(
                 Modifier.align(Alignment.CenterEnd)
                     .offset(x = 18.dp)
+                    .offset(x = 18.dp)
                     .width(18.dp).fillMaxHeight()
                     .pointerInput(clip.id) {
                         var pendingPx = 0f
