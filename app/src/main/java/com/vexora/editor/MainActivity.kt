@@ -493,8 +493,7 @@ private fun TimelineClip(
     onAction: (String) -> Unit
 ) {
     Box(
-        Modifier.width(width).fillMaxHeight().padding(end = 3.dp)
-            .then(if (selected) Modifier.zIndex(2f) else Modifier),
+        Modifier.width(width).fillMaxHeight(),
         contentAlignment = Alignment.Center
     ) {
         Box(
@@ -571,7 +570,7 @@ private fun TimelineClip(
                 if (toolbarVisible) {
                     Box(
                         Modifier
-                            .offset(x = -10.dp)
+                            .offset(x = 0.dp)
                             .width(34.dp)
                             .fillMaxHeight(),
                         contentAlignment = Alignment.Center
