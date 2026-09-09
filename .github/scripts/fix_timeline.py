@@ -51,7 +51,7 @@ new_resize = '''    fun updateSelectedDuration(newDuration: Long) {
 if old_resize in s:
     s = s.replace(old_resize, new_resize)
 
-# Replace TimelineClip so the resize arrow is hidden until its right-edge hit area is tapped.
+# Replace TimelineClip so the resize arrow follows the same visibility toggle as the yellow toolbar.
 timeline_pattern = r'@Composable\nprivate fun TimelineClip\(.*?\n\}\n\n@Composable\nprivate fun TimeMarkers'
 timeline_replacement = '''@Composable
 private fun TimelineClip(
@@ -64,12 +64,6 @@ private fun TimelineClip(
     onDuplicate: () -> Unit,
     onAction: (String) -> Unit
 ) {
-    var handleVisible by remember(clip.id) { mutableStateOf(false) }
-
-    LaunchedEffect(selected) {
-        if (!selected) handleVisible = false
-    }
-
     Box(
         Modifier.width(width).fillMaxHeight().padding(end = 3.dp),
         contentAlignment = Alignment.Center
@@ -119,22 +113,19 @@ private fun TimelineClip(
         }
 
         if (onResize != null && selected) {
-            // Hit area is inside the clip; visual arrow is outside the image strip.
+            // Keep an invisible touch zone at the right edge, while the visual arrow
+            // is shown/hidden together with the yellow toolbar and sits fully outside the image strip.
             Box(
                 Modifier.align(Alignment.CenterEnd)
                     .width(24.dp)
                     .fillMaxHeight()
-                    .clickable { handleVisible = true }
+                    .clickable { }
                     .pointerInput(clip.id) {
                         var pendingPx = 0f
                         detectDragGestures(
-                            onDragStart = {
-                                pendingPx = 0f
-                                handleVisible = true
-                            },
+                            onDragStart = { pendingPx = 0f },
                             onDrag = { change, dragAmount ->
                                 change.consume()
-                                handleVisible = true
                                 pendingPx += dragAmount.x
                                 val wholeSeconds = (pendingPx / 55f).toInt()
                                 if (wholeSeconds != 0) {
@@ -148,23 +139,23 @@ private fun TimelineClip(
                     },
                 contentAlignment = Alignment.CenterEnd
             ) {
-                if (handleVisible) {
+                if (toolbarVisible) {
                     Box(
                         Modifier
-                            .offset(x = 18.dp)
-                            .width(18.dp)
+                            .offset(x = 28.dp)
+                            .width(28.dp)
                             .fillMaxHeight(),
                         contentAlignment = Alignment.Center
                     ) {
                         Box(
-                            Modifier.width(5.dp).fillMaxHeight().padding(vertical = 8.dp)
+                            Modifier.width(7.dp).fillMaxHeight().padding(vertical = 6.dp)
                                 .background(TimelineAccent, RoundedCornerShape(4.dp))
                         )
                         Icon(
                             Icons.Default.ChevronRight,
                             "Drag to extend image duration",
                             tint = Color.Black,
-                            modifier = Modifier.size(16.dp)
+                            modifier = Modifier.size(22.dp)
                         )
                     }
                 }
