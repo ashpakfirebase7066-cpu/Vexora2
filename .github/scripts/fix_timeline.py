@@ -55,18 +55,16 @@ new_resize = '''    fun updateSelectedDuration(newDuration: Long) {
 if old_resize in s:
     s = s.replace(old_resize, new_resize)
 
-# Put the resize handle at the exact right edge of the image area, not over the thumbnail content.
-# The thumbnail strip reserves the final 18dp for the handle.
+# Thumbnail strip uses the FULL clip width. The resize handle is an overlay outside the clip edge.
 s = s.replace(
-    'Row(Modifier.fillMaxSize()) {\n                    val thumbnailCount = max(1, kotlin.math.ceil(clip.duration / 1000.0).toInt())\n                    repeat(thumbnailCount) {\n                        AsyncImage(\n                            clip.uri,\n                            "Timeline image thumbnail",\n                            Modifier.width(55.dp).fillMaxHeight(),\n                            contentScale = ContentScale.Crop\n                        )\n                    }\n                }',
-    'Row(Modifier.fillMaxSize().padding(end = 18.dp)) {\n                    val thumbnailCount = max(1, kotlin.math.ceil(clip.duration / 1000.0).toInt())\n                    val thumbnailWidth = ((width.value - 18f) / thumbnailCount).coerceAtLeast(1f).dp\n                    repeat(thumbnailCount) {\n                        AsyncImage(\n                            clip.uri,\n                            "Timeline image thumbnail",\n                            Modifier.width(thumbnailWidth).fillMaxHeight(),\n                            contentScale = ContentScale.Crop\n                        )\n                    }\n                }'
+    'Row(Modifier.fillMaxSize().padding(end = 18.dp)) {\n                    val thumbnailCount = max(1, kotlin.math.ceil(clip.duration / 1000.0).toInt())\n                    val thumbnailWidth = ((width.value - 18f) / thumbnailCount).coerceAtLeast(1f).dp',
+    'Row(Modifier.fillMaxSize()) {\n                    val thumbnailCount = max(1, kotlin.math.ceil(clip.duration / 1000.0).toInt())\n                    val thumbnailWidth = (width.value / thumbnailCount).coerceAtLeast(1f).dp'
 )
 
-# Replace resize gesture with a cumulative, one-second-at-a-time drag so small pointer events
-# do not get rounded away. The handle itself stays inside the clip's right edge hit area.
+# Put the resize handle completely OUTSIDE the selected clip: its left edge starts exactly at the clip's right edge.
 s = s.replace(
-'''                    .offset(x = 9.dp)\n                    .width(18.dp).fillMaxHeight()\n                    .pointerInput(clip.id) {\n                        detectDragGestures(\n                            onDrag = { change, dragAmount ->\n                                change.consume()\n                                onResize(dragAmount.x)\n                            }\n                        )\n                    },''',
-'''                    .width(18.dp).fillMaxHeight()\n                    .pointerInput(clip.id) {\n                        var pendingPx = 0f\n                        detectDragGestures(\n                            onDragStart = { pendingPx = 0f },\n                            onDrag = { change, dragAmount ->\n                                change.consume()\n                                pendingPx += dragAmount.x\n                                val wholeSeconds = (pendingPx / 55f).toInt()\n                                if (wholeSeconds != 0) {\n                                    onResize(wholeSeconds * 55f)\n                                    pendingPx -= wholeSeconds * 55f\n                                }\n                            },\n                            onDragEnd = { pendingPx = 0f },\n                            onDragCancel = { pendingPx = 0f }\n                        )\n                    },'''
+    '''                    .width(18.dp).fillMaxHeight()\n                    .pointerInput(clip.id) {''',
+    '''                    .offset(x = 18.dp)\n                    .width(18.dp).fillMaxHeight()\n                    .zIndex(10f)\n                    .pointerInput(clip.id) {'''
 )
 
 # Continuous ruler from 0s through the project duration.
