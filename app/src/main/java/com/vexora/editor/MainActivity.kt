@@ -35,6 +35,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.ui.zIndex
 import androidx.media3.common.MediaItem
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
@@ -492,7 +493,8 @@ private fun TimelineClip(
     onAction: (String) -> Unit
 ) {
     Box(
-        Modifier.width(width).fillMaxHeight().padding(end = 3.dp),
+        Modifier.width(width).fillMaxHeight().padding(end = 3.dp)
+            .then(if (selected) Modifier.zIndex(2f) else Modifier),
         contentAlignment = Alignment.Center
     ) {
         Box(
