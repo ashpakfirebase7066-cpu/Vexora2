@@ -1,0 +1,81 @@
+name: Update Vexora2 selection toolbar
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/ui-toolbar-update.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Update selection toolbar behavior
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('app/src/main/java/com/vexora/editor/MainActivity.kt')
+          s = p.read_text()
+
+          s = s.replace('var selected by remember { mutableIntStateOf(-1) }', 'var selected by remember { mutableIntStateOf(-1) }\n    var toolbarVisible by remember { mutableStateOf(false) }')
+          s = s.replace('if (selected < 0 && clips.isNotEmpty()) selected = 0', 'if (selected < 0 && clips.isNotEmpty()) { selected = 0; toolbarVisible = true }')
+          s = s.replace('onSelect = { selected = it },', 'onSelect = { index ->\n                if (selected == index) toolbarVisible = !toolbarVisible else { selected = index; toolbarVisible = true }\n            },')
+          s = s.replace('onDelete = {\n                if (selected in clips.indices) {', 'onDelete = {\n                if (selected in clips.indices) {')
+          s = s.replace('selected = if (clips.isEmpty()) -1 else selected.coerceAtMost(clips.lastIndex)', 'selected = if (clips.isEmpty()) -1 else selected.coerceAtMost(clips.lastIndex)\n                    toolbarVisible = selected >= 0')
+          s = s.replace('onRight = {\n                if (selected in 0 until clips.lastIndex) {', 'onRight = {\n                if (selected in 0 until clips.lastIndex) {')
+          s = s.replace('onResize = { deltaPx ->', 'onResize = { deltaPx ->')
+          s = s.replace('onAction = { name ->', 'onAction = { name ->')
+          s = s.replace('onRight = {\n                if (selected in 0 until clips.lastIndex) {\n                    val x = clips.removeAt(selected)\n                    clips.add(selected + 1, x)\n                    selected++\n                }\n            }\n        )', 'onRight = {\n                if (selected in 0 until clips.lastIndex) {\n                    val x = clips.removeAt(selected)\n                    clips.add(selected + 1, x)\n                    selected++\n                    toolbarVisible = true\n                }\n            },\n            toolbarVisible = toolbarVisible\n        )')
+
+          # Make Timeline accept visibility state and pass it to the media lane.
+          s = s.replace('onRight: () -> Unit\n) {', 'onRight: () -> Unit,\n    toolbarVisible: Boolean\n) {')
+          s = s.replace('onResize = onResize,\n                        contentWidth = visibleWidth', 'onResize = onResize,\n                        contentWidth = visibleWidth,\n                        toolbarVisible = toolbarVisible')
+          s = s.replace('onResize: ((Float) -> Unit)?,\n    contentWidth: Float', 'onResize: ((Float) -> Unit)?,\n    contentWidth: Float,\n    toolbarVisible: Boolean')
+
+          # Position the yellow toolbar at the selected clip's starting edge.
+          marker = '        if (clips.isEmpty()) {'
+          toolbar = '''        if (toolbarVisible && selected in clips.indices) {\n            val startX = 8f + clips.take(selected).sumOf { (it.duration / 1000f * 55f).toDouble() }.toFloat()\n            SelectionToolbar(\n                modifier = Modifier\n                    .padding(start = startX.dp, top = 4.dp)\n                    .align(Alignment.TopStart),\n                onAction = onAction,\n                onDuplicate = onDuplicate,\n                onDelete = { onAction("Delete") }\n            )\n        }\n\n'''
+          if marker in s and 'SelectionToolbar(' not in s:
+              s = s.replace(marker, toolbar + marker, 1)
+
+          # The existing toolbar may already exist; move it from centered placement if found.
+          s = s.replace('.align(Alignment.Center)', '.align(Alignment.TopStart)')
+
+          # Fix the Compose pointerInput overload that previously failed the build.
+          s = s.replace('pointerInput(clip.id, clip.duration)', 'pointerInput(clip.id)')
+
+          p.write_text(s)
+          PY
+
+      - name: Verify source changes
+        run: |
+          grep -n "toolbarVisible\|pointerInput(clip.id)" app/src/main/java/com/vexora/editor/MainActivity.kt
+
+      - name: Build debug APK
+        run: gradle assembleDebug --stacktrace
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Vexora2-debug-apk-toolbar
+          path: app/build/outputs/apk/debug/app-debug.apk
+
+      - name: Commit changes
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add app/src/main/java/com/vexora/editor/MainActivity.kt
+          if git diff --cached --quiet; then
+            echo "No source changes to commit"
+          else
+            git commit -m "Toggle selection toolbar and position at clip start"
+            git push
+          fi
