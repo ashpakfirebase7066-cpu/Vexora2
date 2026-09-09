@@ -26,6 +26,8 @@ jobs:
           gradle-version: '8.10.2'
       - name: Apply timeline fixes
         run: python3 .github/scripts/fix_timeline.py
+      - name: Keep selected resize handle on top
+        run: python3 .github/scripts/ensure_selected_arrow.py
       - name: Commit timeline source fixes
         shell: bash
         run: |
@@ -33,7 +35,7 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add app/src/main/java/com/vexora/editor/MainActivity.kt
           if ! git diff --cached --quiet; then
-            git commit -m "Fix image resize framing and timeline ruler scale"
+            git commit -m "Fix selected clip resize handle layering"
             git push
           fi
       - name: Build debug APK
