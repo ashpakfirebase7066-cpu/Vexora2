@@ -84,7 +84,8 @@ private fun VexoraEditor() {
     fun updateSelectedDuration(newDuration: Long) {
         if (selected in clips.indices) {
             val old = clips[selected]
-            clips[selected] = old.copy(duration = newDuration.coerceIn(500L, 60000L))
+            val snapped = ((newDuration.coerceIn(1000L, 60000L) + 500L) / 1000L) * 1000L
+            clips[selected] = old.copy(duration = snapped.coerceIn(1000L, 60000L))
         }
     }
 
@@ -264,7 +265,7 @@ private fun Timeline(
     val timelineScroll = rememberScrollState()
     val totalDuration = clips.sumOf { it.duration }.coerceAtLeast(3000L)
     val pixelsPerSecond = 55f
-    val contentWidth = (totalDuration / 1000f * pixelsPerSecond + 70f).coerceAtLeast(360f)
+    val contentWidth = (totalDuration / 1000f * pixelsPerSecond + 8f).coerceAtLeast(360f)
 
     Column(Modifier.fillMaxWidth().height(300.dp).background(Color(0xFF15161A))) {
         Row(
@@ -572,9 +573,7 @@ private fun TimeMarkers(clips: List<Clip>, contentWidth: Float, pixelsPerSecond:
         for (second in 0..totalSeconds) {
             val x = second * pixelsPerSecond
             if (x <= contentWidth) {
-                Box(
-                    Modifier.width(pixelsPerSecond.dp).fillMaxHeight()
-                ) {
+                Box(Modifier.width(pixelsPerSecond.dp).fillMaxHeight()) {
                     Box(Modifier.width(1.dp).height(6.dp).background(SecondaryText))
                     Text(
                         "${second}s",
