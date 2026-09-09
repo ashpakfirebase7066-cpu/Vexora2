@@ -264,7 +264,7 @@ private fun Timeline(
     val timelineScroll = rememberScrollState()
     val totalDuration = clips.sumOf { it.duration }.coerceAtLeast(3000L)
     val pixelsPerSecond = 55f
-    val contentWidth = (totalDuration / 1000f * pixelsPerSecond).coerceAtLeast(360f)
+    val contentWidth = (totalDuration / 1000f * pixelsPerSecond + 70f).coerceAtLeast(360f)
 
     Column(Modifier.fillMaxWidth().height(300.dp).background(Color(0xFF15161A))) {
         Row(
@@ -416,7 +416,7 @@ private fun MainMediaLane(
         } else {
             Row(Modifier.fillMaxHeight().padding(start = 8.dp, top = 10.dp, bottom = 10.dp)) {
                 clips.forEachIndexed { index, clip ->
-                    val width = (clip.duration / 1000f * 55f).coerceIn(58f, 360f)
+                    val width = (clip.duration / 1000f * 55f).coerceAtLeast(1f)
                     TimelineClip(
                         clip = clip,
                         selected = index == selected,
@@ -437,7 +437,7 @@ private fun MainMediaLane(
 
             if (toolbarVisible && selected in clips.indices) {
                 val toolbarStartPx = 8f + clips.take(selected).sumOf {
-                    (it.duration / 1000f * 55f).coerceIn(58f, 360f).toDouble()
+                    (it.duration / 1000f * 55f).coerceAtLeast(1f).toDouble()
                 }.toFloat()
                 SelectedClipToolbar(
                     modifier = Modifier
@@ -510,7 +510,7 @@ private fun TimelineClip(
                 Text("VIDEO", color = Color.White, fontSize = 8.sp, fontWeight = FontWeight.Bold)
             }
         } else {
-            AsyncImage(clip.uri, "Timeline image", Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+            AsyncImage(clip.uri, "Timeline image", Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
         }
         Text(
             time(clip.duration),
@@ -552,21 +552,28 @@ private fun TimelineClip(
 
 @Composable
 private fun TimeMarkers(clips: List<Clip>, contentWidth: Float, pixelsPerSecond: Float) {
+    val totalMs = clips.sumOf { it.duration }
+    val totalSeconds = max(1, kotlin.math.ceil(totalMs / 1000.0).toInt())
+
     Row(
-        Modifier.width(contentWidth.dp).height(28.dp).background(Color(0xFF15161A)),
+        Modifier.width(contentWidth.dp).height(32.dp).background(Color(0xFF15161A)),
         verticalAlignment = Alignment.Top
     ) {
-        if (clips.isNotEmpty()) {
-            var elapsed = 0L
-            clips.forEach { clip ->
-                val width = (clip.duration / 1000f * pixelsPerSecond).coerceIn(58f, 360f)
-                Box(Modifier.width(width.dp).padding(top = 3.dp)) {
-                    Text(time(elapsed), color = SecondaryText, fontSize = 8.sp)
-                    elapsed += clip.duration
+        for (second in 0..totalSeconds) {
+            val x = second * pixelsPerSecond
+            if (x <= contentWidth) {
+                Box(
+                    Modifier.width(pixelsPerSecond.dp).fillMaxHeight()
+                ) {
+                    Box(Modifier.width(1.dp).height(6.dp).background(SecondaryText))
+                    Text(
+                        "${second}s",
+                        color = SecondaryText,
+                        fontSize = 7.sp,
+                        modifier = Modifier.padding(top = 8.dp)
+                    )
                 }
             }
-        } else {
-            Text("00:00", color = SecondaryText, fontSize = 8.sp, modifier = Modifier.padding(top = 3.dp))
         }
     }
 }
