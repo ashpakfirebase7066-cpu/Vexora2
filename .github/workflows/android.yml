@@ -5,6 +5,9 @@ on:
     branches: [ "main" ]
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -20,6 +23,85 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.10.2'
+      - name: Apply timeline fixes
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          p = Path('app/src/main/java/com/vexora/editor/MainActivity.kt')
+          s = p.read_text()
+
+          # Resize the clip, not the image content: use Fit so the bitmap keeps its framing.
+          s = s.replace(
+              'AsyncImage(clip.uri, "Timeline image", Modifier.fillMaxSize(), contentScale = ContentScale.Crop)',
+              'AsyncImage(clip.uri, "Timeline image", Modifier.fillMaxSize(), contentScale = ContentScale.Fit)'
+          )
+
+          # Keep the timeline's visual width proportional to its duration. The old min/max
+          # width clamps made the ruler disagree with the clips after resizing.
+          s = s.replace(
+              'val width = (clip.duration / 1000f * 55f).coerceIn(58f, 360f)',
+              'val width = (clip.duration / 1000f * 55f).coerceAtLeast(1f)'
+          )
+          s = s.replace(
+              'val toolbarStartPx = 8f + clips.take(selected).sumOf {\n                    (it.duration / 1000f * 55f).coerceIn(58f, 360f).toDouble()\n                }.toFloat()',
+              'val toolbarStartPx = 8f + clips.take(selected).sumOf {\n                    (it.duration / 1000f * 55f).coerceAtLeast(1f).toDouble()\n                }.toFloat()'
+          )
+
+          # The timeline canvas must include the complete project duration plus the add tile.
+          s = s.replace(
+              'val contentWidth = (totalDuration / 1000f * pixelsPerSecond).coerceAtLeast(360f)',
+              'val contentWidth = (totalDuration / 1000f * pixelsPerSecond + 70f).coerceAtLeast(360f)'
+          )
+
+          # Replace the ruler with a continuous 0s -> project-end ruler.
+          pattern = r'@Composable\nprivate fun TimeMarkers\(clips: List<Clip>, contentWidth: Float, pixelsPerSecond: Float\) \{.*?\n\}\n\n@Composable\nprivate fun BottomTools'
+          replacement = '''@Composable
+private fun TimeMarkers(clips: List<Clip>, contentWidth: Float, pixelsPerSecond: Float) {
+    val totalMs = clips.sumOf { it.duration }
+    val totalSeconds = max(1, kotlin.math.ceil(totalMs / 1000.0).toInt())
+
+    Row(
+        Modifier.width(contentWidth.dp).height(32.dp).background(Color(0xFF15161A)),
+        verticalAlignment = Alignment.Top
+    ) {
+        for (second in 0..totalSeconds) {
+            val x = second * pixelsPerSecond
+            if (x <= contentWidth) {
+                Box(
+                    Modifier.width(pixelsPerSecond.dp).fillMaxHeight()
+                ) {
+                    Box(Modifier.width(1.dp).height(6.dp).background(SecondaryText))
+                    Text(
+                        "${second}s",
+                        color = SecondaryText,
+                        fontSize = 7.sp,
+                        modifier = Modifier.padding(top = 8.dp)
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun BottomTools'''
+          s2, n = re.subn(pattern, replacement, s, flags=re.S)
+          if n != 1:
+              raise SystemExit(f'TimeMarkers replacement count={n}')
+          p.write_text(s2)
+          PY
+      - name: Commit timeline source fixes
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add app/src/main/java/com/vexora/editor/MainActivity.kt
+          if ! git diff --cached --quiet; then
+            git commit -m "Fix image resize framing and timeline ruler scale"
+            git push
+          fi
       - name: Build debug APK
         run: gradle assembleDebug --stacktrace
       - name: Upload APK
