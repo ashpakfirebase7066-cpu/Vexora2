@@ -423,50 +423,44 @@ private fun MainMediaLane(
                         selected = index == selected,
                         width = width.dp,
                         onClick = { onSelect(index) },
-                        onResize = if (index == selected && !clip.video) onResize else null
+                        onResize = if (index == selected && !clip.video) onResize else null,
+                        toolbarVisible = toolbarVisible && index == selected,
+                        onDuplicate = onDuplicate,
+                        onAction = onAction
                     )
                 }
-                Box(
-                    Modifier.padding(start = 6.dp).width(58.dp).fillMaxHeight()
-                        .border(1.dp, Color(0xFF3B3C45), RoundedCornerShape(5.dp))
-                        .clickable(onClick = onAdd),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(Icons.Default.Add, "Add media", tint = SecondaryText, modifier = Modifier.size(28.dp))
-                }
             }
+        }
 
-            if (toolbarVisible && selected in clips.indices) {
-                val toolbarStartPx = 8f + clips.take(selected).sumOf {
-                    (it.duration / 1000f * 55f).coerceAtLeast(1f).toDouble()
-                }.toFloat()
-                SelectedClipToolbar(
-                    modifier = Modifier
-                        .align(Alignment.TopStart)
-                        .offset(x = toolbarStartPx.dp, y = (-62).dp),
-                    onDuplicate = onDuplicate,
-                    onAction = onAction
-                )
-            }
+        if (selected in clips.indices && toolbarVisible) {
+            val toolbarStartPx = 8f + clips.take(selected).sumOf {
+                (it.duration / 1000f * 55f).coerceAtLeast(1f).toDouble()
+            }.toFloat()
+            ClipToolbar(
+                modifier = Modifier.offset(x = toolbarStartPx.dp, y = (-48).dp),
+                onDuplicate = onDuplicate,
+                onAction = onAction
+            )
         }
     }
 }
 
 @Composable
-private fun SelectedClipToolbar(
+private fun ClipToolbar(
     modifier: Modifier,
     onDuplicate: () -> Unit,
     onAction: (String) -> Unit
 ) {
     Row(
         modifier
-            .height(58.dp)
-            .background(Color(0xFFFFD400), RoundedCornerShape(12.dp))
-            .padding(horizontal = 7.dp, vertical = 5.dp),
+            .height(44.dp)
+            .width(320.dp)
+            .background(TimelineAccent, RoundedCornerShape(5.dp))
+            .padding(horizontal = 4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        ClipAction(Icons.Default.Refresh, "Replace") { onAction("Replace") }
-        ClipAction(Icons.Default.Star, "Keyframe") { onAction("Keyframe") }
+        ClipAction(Icons.Default.SwapHoriz, "Replace") { onAction("Replace") }
+        ClipAction(Icons.Default.Key, "Keyframe") { onAction("Keyframe") }
         ClipAction(Icons.Default.ShowChart, "Curve") { onAction("Curve") }
         ClipAction(Icons.Default.Lock, "Lock") { onAction("Lock") }
         ClipAction(Icons.Default.ContentCopy, "Duplicate") { onDuplicate() }
@@ -492,7 +486,10 @@ private fun TimelineClip(
     selected: Boolean,
     width: Dp,
     onClick: () -> Unit,
-    onResize: ((Float) -> Unit)?
+    onResize: ((Float) -> Unit)?,
+    toolbarVisible: Boolean,
+    onDuplicate: () -> Unit,
+    onAction: (String) -> Unit
 ) {
     Box(
         Modifier.width(width).fillMaxHeight().padding(end = 3.dp),
@@ -547,7 +544,6 @@ private fun TimelineClip(
                 Modifier.align(Alignment.CenterEnd)
                     .offset(x = 18.dp)
                     .width(18.dp).fillMaxHeight()
-                    .zIndex(10f)
                     .pointerInput(clip.id) {
                         var pendingPx = 0f
                         detectDragGestures(
