@@ -493,7 +493,6 @@ private fun TimelineClip(
 ) {
     var handleVisible by remember(clip.id) { mutableStateOf(false) }
 
-    // Reset the visual handle whenever this clip is no longer selected.
     LaunchedEffect(selected) {
         if (!selected) handleVisible = false
     }
@@ -547,8 +546,7 @@ private fun TimelineClip(
         }
 
         if (onResize != null && selected) {
-            // Invisible tap/drag target is inside the clip edge; the actual chevron is drawn
-            // completely outside the image strip so it never covers a thumbnail.
+            // Hit area is inside the clip; visual arrow is outside the image strip.
             Box(
                 Modifier.align(Alignment.CenterEnd)
                     .width(24.dp)
@@ -582,8 +580,7 @@ private fun TimelineClip(
                         Modifier
                             .offset(x = 18.dp)
                             .width(18.dp)
-                            .fillMaxHeight()
-                            .zIndex(10f),
+                            .fillMaxHeight(),
                         contentAlignment = Alignment.Center
                     ) {
                         Box(
