@@ -63,6 +63,7 @@ private fun VexoraEditor() {
     val context = LocalContext.current
     val clips = remember { mutableStateListOf<Clip>() }
     var selected by remember { mutableIntStateOf(-1) }
+    var toolbarVisible by remember { mutableStateOf(false) }
     var nextId by remember { mutableIntStateOf(1) }
 
     val picker = androidx.activity.compose.rememberLauncherForActivityResult(
@@ -102,12 +103,20 @@ private fun VexoraEditor() {
         Timeline(
             clips = clips,
             selected = selected,
-            onSelect = { selected = it },
+            onSelect = { index ->
+                if (selected == index) {
+                    toolbarVisible = !toolbarVisible
+                } else {
+                    selected = index
+                    toolbarVisible = true
+                }
+            },
             onAdd = ::openPicker,
             onDelete = {
                 if (selected in clips.indices) {
                     clips.removeAt(selected)
                     selected = if (clips.isEmpty()) -1 else selected.coerceAtMost(clips.lastIndex)
+                    toolbarVisible = false
                 }
             },
             onDuplicate = ::duplicateSelected,
@@ -134,7 +143,8 @@ private fun VexoraEditor() {
                     clips.add(selected + 1, x)
                     selected++
                 }
-            }
+            },
+            toolbarVisible = toolbarVisible
         )
         BottomTools(onMedia = ::openPicker) { name ->
             Toast.makeText(context, "$name tool coming next", Toast.LENGTH_SHORT).show()
@@ -248,7 +258,8 @@ private fun Timeline(
     onAction: (String) -> Unit,
     onResize: (Float) -> Unit,
     onLeft: () -> Unit,
-    onRight: () -> Unit
+    onRight: () -> Unit,
+    toolbarVisible: Boolean
 ) {
     val timelineScroll = rememberScrollState()
     val totalDuration = clips.sumOf { it.duration }.coerceAtLeast(3000L)
@@ -326,7 +337,8 @@ private fun Timeline(
                         onDuplicate = onDuplicate,
                         onAction = onAction,
                         onResize = onResize,
-                        contentWidth = visibleWidth
+                        contentWidth = visibleWidth,
+                        toolbarVisible = toolbarVisible
                     )
                     TimeMarkers(clips, visibleWidth, pixelsPerSecond)
                 }
@@ -380,7 +392,8 @@ private fun MainMediaLane(
     onDuplicate: () -> Unit,
     onAction: (String) -> Unit,
     onResize: (Float) -> Unit,
-    contentWidth: Float
+    contentWidth: Float,
+    toolbarVisible: Boolean
 ) {
     Box(
         Modifier.width(contentWidth.dp).height(96.dp)
@@ -422,9 +435,14 @@ private fun MainMediaLane(
                 }
             }
 
-            if (selected in clips.indices) {
+            if (toolbarVisible && selected in clips.indices) {
+                val toolbarStartPx = 8f + clips.take(selected).sumOf {
+                    (it.duration / 1000f * 55f).coerceIn(58f, 360f).toDouble()
+                }.toFloat()
                 SelectedClipToolbar(
-                    modifier = Modifier.align(Alignment.TopCenter).offset(y = (-60).dp),
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .offset(x = toolbarStartPx.dp, y = (-62).dp),
                     onDuplicate = onDuplicate,
                     onAction = onAction
                 )
