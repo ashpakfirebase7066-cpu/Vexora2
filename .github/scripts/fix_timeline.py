@@ -56,38 +56,99 @@ new_resize = '''    fun updateSelectedDuration(newDuration: Long) {
 if old_resize in s:
     s = s.replace(old_resize, new_resize)
 
-# Continuous ruler from 0s through the actual project duration.
-pattern = r'@Composable\nprivate fun TimeMarkers\(clips: List<Clip>, contentWidth: Float, pixelsPerSecond: Float\) \{.*?\n\}\n\n@Composable\nprivate fun BottomTools'
-replacement = '''@Composable
-private fun TimeMarkers(clips: List<Clip>, contentWidth: Float, pixelsPerSecond: Float) {
-    val totalMs = clips.sumOf { it.duration }
-    val totalSeconds = max(1, kotlin.math.ceil(totalMs / 1000.0).toInt())
-
-    Row(
-        Modifier.width(contentWidth.dp).height(32.dp).background(Color(0xFF15161A)),
-        verticalAlignment = Alignment.Top
+# Replace TimelineClip so the resize handle is OUTSIDE the thumbnail strip at its right edge.
+# The clip itself remains exactly duration * 55dp wide; the handle is overlaid just beyond the edge
+# and does not consume timeline time or become part of the thumbnail area.
+pattern_clip = r'@Composable\nprivate fun TimelineClip\(.*?\n\}\n\n@Composable\nprivate fun TimeMarkers'
+replacement_clip = '''@Composable
+private fun TimelineClip(
+    clip: Clip,
+    selected: Boolean,
+    width: Dp,
+    onClick: () -> Unit,
+    onResize: ((Float) -> Unit)?
+) {
+    Box(
+        Modifier.width(width).fillMaxHeight().padding(end = 3.dp),
+        contentAlignment = Alignment.Center
     ) {
-        for (second in 0..totalSeconds) {
-            val x = second * pixelsPerSecond
-            if (x <= contentWidth) {
-                Box(Modifier.width(pixelsPerSecond.dp).fillMaxHeight()) {
-                    Box(Modifier.width(1.dp).height(6.dp).background(SecondaryText))
-                    Text(
-                        "${second}s",
-                        color = SecondaryText,
-                        fontSize = 7.sp,
-                        modifier = Modifier.padding(top = 8.dp)
-                    )
+        Box(
+            Modifier.fillMaxSize().clip(RoundedCornerShape(4.dp))
+                .border(
+                    if (selected) 2.dp else 1.dp,
+                    if (selected) TimelineAccent else Color(0xFF3B3C45),
+                    RoundedCornerShape(4.dp)
+                )
+                .background(Panel2)
+                .clickable(onClick = onClick)
+        ) {
+            if (clip.video) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(3.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxSize()
+                ) {
+                    Icon(Icons.Default.VideoLibrary, null, tint = Color.White, modifier = Modifier.size(22.dp))
+                    Text("VIDEO", color = Color.White, fontSize = 8.sp, fontWeight = FontWeight.Bold)
                 }
+            } else {
+                Row(Modifier.fillMaxSize()) {
+                    val thumbnailCount = max(1, kotlin.math.ceil(clip.duration / 1000.0).toInt())
+                    repeat(thumbnailCount) {
+                        AsyncImage(
+                            clip.uri,
+                            "Timeline image thumbnail",
+                            Modifier.width(55.dp).fillMaxHeight(),
+                            contentScale = ContentScale.Crop
+                        )
+                    }
+                }
+            }
+
+            Text(
+                time(clip.duration),
+                color = Color.White,
+                fontSize = 8.sp,
+                modifier = Modifier.align(Alignment.BottomEnd)
+                    .background(Color.Black.copy(.65f))
+                    .padding(3.dp)
+            )
+        }
+
+        if (onResize != null) {
+            Box(
+                Modifier.align(Alignment.CenterEnd)
+                    .offset(x = 9.dp)
+                    .width(18.dp).fillMaxHeight()
+                    .pointerInput(clip.id) {
+                        detectDragGestures(
+                            onDrag = { change, dragAmount ->
+                                change.consume()
+                                onResize(dragAmount.x)
+                            }
+                        )
+                    },
+                contentAlignment = Alignment.Center
+            ) {
+                Box(
+                    Modifier.width(5.dp).fillMaxHeight().padding(vertical = 8.dp)
+                        .background(TimelineAccent, RoundedCornerShape(4.dp))
+                )
+                Icon(
+                    Icons.Default.ChevronRight,
+                    "Drag to extend image duration",
+                    tint = Color.Black,
+                    modifier = Modifier.size(16.dp)
+                )
             }
         }
     }
 }
 
 @Composable
-private fun BottomTools'''
-s, count = re.subn(pattern, replacement, s, flags=re.S)
+private fun TimeMarkers'''
+s, count = re.subn(pattern_clip, replacement_clip, s, flags=re.S)
 if count != 1:
-    raise SystemExit(f"Expected one TimeMarkers function, found {count}")
+    raise SystemExit(f"Expected one TimelineClip function, found {count}")
 
 p.write_text(s)
