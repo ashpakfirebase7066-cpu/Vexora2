@@ -44,7 +44,7 @@ old_resize = '''    fun updateSelectedDuration(newDuration: Long) {
 new_resize = '''    fun updateSelectedDuration(newDuration: Long) {
         if (selected in clips.indices) {
             val old = clips[selected]
-            val snapped = ((newDuration.coerceIn(1000L, 60000L) + 500L) / 1000L) * 1000L
+            val snapped = ((newDuration.coerceIn(1000L, 60000L) + 50L) / 100L) * 100L
             clips[selected] = old.copy(duration = snapped.coerceIn(1000L, 60000L))
         }
     }'''
@@ -167,6 +167,10 @@ private fun TimeMarkers'''
 s, count = re.subn(timeline_pattern, timeline_replacement, s, flags=re.S)
 if count != 1:
     raise SystemExit(f"Expected one TimelineClip function, found {count}")
+
+# Resize in 0.1-second steps instead of 1-second steps.
+s = s.replace('val wholeSeconds = (pendingPx / 55f).toInt()', 'val tenths = (pendingPx / 5.5f).toInt()')
+s = s.replace('if (wholeSeconds != 0) {\n                                    onResize(wholeSeconds * 55f)\n                                    pendingPx -= wholeSeconds * 55f', 'if (tenths != 0) {\n                                    onResize(tenths * 5.5f)\n                                    pendingPx -= tenths * 5.5f')
 
 pattern = r'@Composable\nprivate fun TimeMarkers\(clips: List<Clip>, contentWidth: Float, pixelsPerSecond: Float\) \{.*?\n\}\n\n@Composable\nprivate fun BottomTools'
 replacement = '''@Composable
