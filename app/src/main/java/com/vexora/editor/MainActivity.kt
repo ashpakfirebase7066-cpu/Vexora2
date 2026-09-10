@@ -553,10 +553,10 @@ private fun TimelineClip(
                             onDrag = { change, dragAmount ->
                                 change.consume()
                                 pendingPx += dragAmount.x
-                                val wholeSeconds = (pendingPx / 55f).toInt()
-                                if (wholeSeconds != 0) {
-                                    onResize(wholeSeconds * 55f)
-                                    pendingPx -= wholeSeconds * 55f
+                                val tenths = (pendingPx / 5.5f).toInt()
+                                if (tenths != 0) {
+                                    onResize(tenths * 5.5f)
+                                    pendingPx -= tenths * 5.5f
                                 }
                             },
                             onDragEnd = { pendingPx = 0f },
