@@ -51,7 +51,6 @@ new_resize = '''    fun updateSelectedDuration(newDuration: Long) {
 if old_resize in s:
     s = s.replace(old_resize, new_resize)
 
-# Replace TimelineClip so the resize arrow follows the same visibility toggle as the yellow toolbar.
 timeline_pattern = r'@Composable\nprivate fun TimelineClip\(.*?\n\}\n\n@Composable\nprivate fun TimeMarkers'
 timeline_replacement = '''@Composable
 private fun TimelineClip(
@@ -117,28 +116,28 @@ private fun TimelineClip(
         if (onResize != null && selected) {
             Box(
                 Modifier.align(Alignment.CenterEnd)
-                    .width(32.dp)
+                    .width(40.dp)
                     .fillMaxHeight()
+                    .clickable { arrowActive = !arrowActive }
                     .pointerInput(clip.id) {
                         var pendingPx = 0f
-                        var moved = false
                         detectDragGestures(
                             onDragStart = {
                                 pendingPx = 0f
-                                moved = false
                             },
                             onDrag = { change, dragAmount ->
                                 change.consume()
-                                moved = true
                                 pendingPx += dragAmount.x
-                                val tenths = (pendingPx / 5.5f).toInt()
-                                if (tenths != 0) {
-                                    onResize(tenths * 5.5f)
-                                    pendingPx -= tenths * 5.5f
+                                val stepPx = 5.5f
+                                val steps = kotlin.math.floor(kotlin.math.abs(pendingPx) / stepPx).toInt()
+                                if (steps > 0) {
+                                    val direction = if (pendingPx > 0f) 1f else -1f
+                                    val applied = steps * stepPx * direction
+                                    onResize(applied)
+                                    pendingPx -= applied
                                 }
                             },
                             onDragEnd = {
-                                if (!moved) arrowActive = !arrowActive
                                 pendingPx = 0f
                             },
                             onDragCancel = {
