@@ -85,7 +85,14 @@ private fun VexoraEditor() {
     fun updateSelectedDuration(newDuration: Long) {
         if (selected in clips.indices) {
             val old = clips[selected]
-            val snapped = ((newDuration.coerceIn(1000L, 60000L) + 500L) / 1000L) * 1000L
+            clips[selected] = old.copy(duration = newDuration.coerceIn(1000L, 60000L))
+        }
+    }
+
+    fun snapSelectedDuration() {
+        if (selected in clips.indices) {
+            val old = clips[selected]
+            val snapped = ((old.duration + 50L) / 100L) * 100L
             clips[selected] = old.copy(duration = snapped.coerceIn(1000L, 60000L))
         }
     }
@@ -132,6 +139,7 @@ private fun VexoraEditor() {
                     updateSelectedDuration(clips[selected].duration + deltaMs)
                 }
             },
+            onResizeEnd = { snapSelectedDuration() },
             onLeft = {
                 if (selected > 0) {
                     val x = clips.removeAt(selected)
@@ -259,6 +267,7 @@ private fun Timeline(
     onDuplicate: () -> Unit,
     onAction: (String) -> Unit,
     onResize: (Float) -> Unit,
+    onResizeEnd: () -> Unit,
     onLeft: () -> Unit,
     onRight: () -> Unit,
     toolbarVisible: Boolean
@@ -339,6 +348,7 @@ private fun Timeline(
                         onDuplicate = onDuplicate,
                         onAction = onAction,
                         onResize = onResize,
+                        onResizeEnd = onResizeEnd,
                         contentWidth = visibleWidth,
                         toolbarVisible = toolbarVisible
                     )
@@ -394,6 +404,7 @@ private fun MainMediaLane(
     onDuplicate: () -> Unit,
     onAction: (String) -> Unit,
     onResize: (Float) -> Unit,
+    onResizeEnd: () -> Unit,
     contentWidth: Float,
     toolbarVisible: Boolean
 ) {
@@ -488,6 +499,7 @@ private fun TimelineClip(
     width: Dp,
     onClick: () -> Unit,
     onResize: ((Float) -> Unit)?,
+    onResizeEnd: (() -> Unit)?,
     toolbarVisible: Boolean,
     onDuplicate: () -> Unit,
     onAction: (String) -> Unit
@@ -547,30 +559,24 @@ private fun TimelineClip(
                 Modifier.align(Alignment.CenterEnd)
                     .width(40.dp)
                     .fillMaxHeight()
-                    .clickable { arrowActive = !arrowActive }
                     .pointerInput(clip.id) {
-                        var pendingPx = 0f
+                        var moved = false
                         detectDragGestures(
                             onDragStart = {
-                                pendingPx = 0f
+                                moved = false
                             },
                             onDrag = { change, dragAmount ->
                                 change.consume()
-                                pendingPx += dragAmount.x
-                                val stepPx = 5.5f
-                                val steps = kotlin.math.floor(kotlin.math.abs(pendingPx) / stepPx).toInt()
-                                if (steps > 0) {
-                                    val direction = if (pendingPx > 0f) 1f else -1f
-                                    val applied = steps * stepPx * direction
-                                    onResize(applied)
-                                    pendingPx -= applied
-                                }
+                                if (dragAmount.x != 0f) moved = true
+                                onResize(dragAmount.x)
                             },
                             onDragEnd = {
-                                pendingPx = 0f
+                                if (!moved) arrowActive = !arrowActive
+                                else onResizeEnd?.invoke()
+                                moved = false
                             },
                             onDragCancel = {
-                                pendingPx = 0f
+                                moved = false
                             }
                         )
                     },
@@ -591,7 +597,7 @@ private fun TimelineClip(
                         Icon(
                             Icons.Default.ChevronRight,
                             "Drag to extend image duration",
-                            tint = if (arrowActive) Color.White else Color.Black,
+                            tint = Color.Black,
                             modifier = Modifier.size(24.dp)
                         )
                     }
