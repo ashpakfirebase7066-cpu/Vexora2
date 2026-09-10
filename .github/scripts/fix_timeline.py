@@ -30,153 +30,98 @@ s = s.replace(
     'val toolbarStartPx = 8f + clips.take(selected).sumOf {\n                (it.duration / 1000f * 55f).coerceAtLeast(1f).toDouble()\n            }.toFloat()'
 )
 
-s = s.replace(
-    'val contentWidth = (totalDuration / 1000f * pixelsPerSecond + 70f).coerceAtLeast(360f)',
-    'val contentWidth = (totalDuration / 1000f * pixelsPerSecond + 8f).coerceAtLeast(360f)'
-)
-
+# Keep resizing continuous while dragging. Snap to 0.1 second only when the gesture ends.
 old_resize = '''    fun updateSelectedDuration(newDuration: Long) {
         if (selected in clips.indices) {
             val old = clips[selected]
-            clips[selected] = old.copy(duration = newDuration.coerceIn(500L, 60000L))
+            val snapped = ((newDuration.coerceIn(1000L, 60000L) + 500L) / 1000L) * 1000L
+            clips[selected] = old.copy(duration = snapped.coerceIn(1000L, 60000L))
         }
     }'''
 new_resize = '''    fun updateSelectedDuration(newDuration: Long) {
         if (selected in clips.indices) {
             val old = clips[selected]
-            val snapped = ((newDuration.coerceIn(1000L, 60000L) + 50L) / 100L) * 100L
+            clips[selected] = old.copy(duration = newDuration.coerceIn(1000L, 60000L))
+        }
+    }
+
+    fun snapSelectedDuration() {
+        if (selected in clips.indices) {
+            val old = clips[selected]
+            val snapped = ((old.duration + 50L) / 100L) * 100L
             clips[selected] = old.copy(duration = snapped.coerceIn(1000L, 60000L))
         }
     }'''
 if old_resize in s:
     s = s.replace(old_resize, new_resize)
 
-timeline_pattern = r'@Composable\nprivate fun TimelineClip\(.*?\n\}\n\n@Composable\nprivate fun TimeMarkers'
-timeline_replacement = '''@Composable
-private fun TimelineClip(
-    clip: Clip,
-    selected: Boolean,
-    width: Dp,
-    onClick: () -> Unit,
-    onResize: ((Float) -> Unit)?,
-    toolbarVisible: Boolean,
-    onDuplicate: () -> Unit,
-    onAction: (String) -> Unit
-) {
-    var arrowActive by remember { mutableStateOf(false) }
+# Add an end-of-drag callback to TimelineClip.
+s = s.replace(
+    'onResize: ((Float) -> Unit)?,\n    toolbarVisible: Boolean,',
+    'onResize: ((Float) -> Unit)?,\n    onResizeEnd: (() -> Unit)?,\n    toolbarVisible: Boolean,'
+)
 
-    Box(
-        Modifier.width(width).fillMaxHeight(),
-        contentAlignment = Alignment.Center
-    ) {
-        Box(
-            Modifier.fillMaxSize().clip(RoundedCornerShape(4.dp))
-                .border(
-                    if (selected) 2.dp else 1.dp,
-                    if (selected) TimelineAccent else Color(0xFF3B3C45),
-                    RoundedCornerShape(4.dp)
-                )
-                .background(Panel2)
-                .clickable(onClick = onClick)
-        ) {
-            if (clip.video) {
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(3.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.fillMaxSize()
-                ) {
-                    Icon(Icons.Default.VideoLibrary, null, tint = Color.White, modifier = Modifier.size(22.dp))
-                    Text("VIDEO", color = Color.White, fontSize = 8.sp, fontWeight = FontWeight.Bold)
-                }
-            } else {
-                Row(Modifier.fillMaxSize()) {
-                    val thumbnailCount = max(1, kotlin.math.ceil(clip.duration / 1000.0).toInt())
-                    val thumbnailWidth = (width.value / thumbnailCount).coerceAtLeast(1f).dp
-                    repeat(thumbnailCount) {
-                        AsyncImage(
-                            clip.uri,
-                            "Timeline image thumbnail",
-                            Modifier.width(thumbnailWidth).fillMaxHeight(),
-                            contentScale = ContentScale.Crop
-                        )
-                    }
-                }
-            }
+# Pass the callback from MainMediaLane into TimelineClip.
+s = s.replace(
+    'onResize = onResize,\n                        contentWidth = visibleWidth,',
+    'onResize = onResize,\n                        onResizeEnd = onResizeEnd,\n                        contentWidth = visibleWidth,'
+)
 
-            Text(
-                time(clip.duration),
-                color = Color.White,
-                fontSize = 8.sp,
-                modifier = Modifier.align(Alignment.BottomEnd)
-                    .background(Color.Black.copy(.65f))
-                    .padding(3.dp)
-            )
-        }
+# Add the callback to MainMediaLane and pass it to TimelineClip.
+s = s.replace(
+    'onResize: (Float) -> Unit,\n    contentWidth: Float,',
+    'onResize: (Float) -> Unit,\n    onResizeEnd: () -> Unit,\n    contentWidth: Float,'
+)
 
-        if (onResize != null && selected) {
-            Box(
-                Modifier.align(Alignment.CenterEnd)
-                    .width(40.dp)
-                    .fillMaxHeight()
-                    .clickable { arrowActive = !arrowActive }
-                    .pointerInput(clip.id) {
-                        var pendingPx = 0f
+# Add the callback to Timeline() and pass it to MainMediaLane.
+s = s.replace(
+    'onResize: (Float) -> Unit,\n    onLeft: () -> Unit,',
+    'onResize: (Float) -> Unit,\n    onResizeEnd: () -> Unit,\n    onLeft: () -> Unit,'
+)
+s = s.replace(
+    'onResize = onResize,\n                        contentWidth = visibleWidth,\n                        toolbarVisible = toolbarVisible',
+    'onResize = onResize,\n                        onResizeEnd = onResizeEnd,\n                        contentWidth = visibleWidth,\n                        toolbarVisible = toolbarVisible'
+)
+
+# Wire the end callback from VexoraEditor into Timeline.
+s = s.replace(
+    'onResize = { deltaPx ->\n                if (selected in clips.indices && !clips[selected].video) {\n                    val deltaMs = (deltaPx / 55f * 1000f).roundToLong()\n                    updateSelectedDuration(clips[selected].duration + deltaMs)\n                }\n            },\n            onLeft = {',
+    'onResize = { deltaPx ->\n                if (selected in clips.indices && !clips[selected].video) {\n                    val deltaMs = (deltaPx / 55f * 1000f).roundToLong()\n                    updateSelectedDuration(clips[selected].duration + deltaMs)\n                }\n            },\n            onResizeEnd = { snapSelectedDuration() },\n            onLeft = {'
+)
+
+# Replace the resize gesture with a continuous drag. Do not quantize each motion event.
+s = re.sub(
+    r'\.clickable \{ arrowActive = !arrowActive \}\n                    \.pointerInput\(clip\.id\) \{.*?\n                    \},',
+    '''.pointerInput(clip.id) {
+                        var moved = false
                         detectDragGestures(
                             onDragStart = {
-                                pendingPx = 0f
+                                moved = false
                             },
                             onDrag = { change, dragAmount ->
                                 change.consume()
-                                pendingPx += dragAmount.x
-                                val stepPx = 5.5f
-                                val steps = kotlin.math.floor(kotlin.math.abs(pendingPx) / stepPx).toInt()
-                                if (steps > 0) {
-                                    val direction = if (pendingPx > 0f) 1f else -1f
-                                    val applied = steps * stepPx * direction
-                                    onResize(applied)
-                                    pendingPx -= applied
-                                }
+                                if (dragAmount.x != 0f) moved = true
+                                onResize(dragAmount.x)
                             },
                             onDragEnd = {
-                                pendingPx = 0f
+                                if (!moved) arrowActive = !arrowActive
+                                else onResizeEnd?.invoke()
+                                moved = false
                             },
                             onDragCancel = {
-                                pendingPx = 0f
+                                moved = false
                             }
                         )
-                    },
-                contentAlignment = Alignment.CenterEnd
-            ) {
-                if (toolbarVisible) {
-                    Box(
-                        Modifier
-                            .offset(x = 13.dp)
-                            .width(34.dp)
-                            .fillMaxHeight(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Box(
-                            Modifier.width(8.dp).fillMaxHeight()
-                                .background(TimelineAccent, RoundedCornerShape(4.dp))
-                        )
-                        Icon(
-                            Icons.Default.ChevronRight,
-                            "Drag to extend image duration",
-                            tint = if (arrowActive) Color.White else Color.Black,
-                            modifier = Modifier.size(24.dp)
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
+                    },''',
+    s,
+    flags=re.S
+)
 
-@Composable
-private fun TimeMarkers'''
-s, count = re.subn(timeline_pattern, timeline_replacement, s, flags=re.S)
-if count != 1:
-    raise SystemExit(f"Expected one TimelineClip function, found {count}")
+# Arrow must always be black.
+s = s.replace(
+    'tint = if (arrowActive) Color.White else Color.Black,',
+    'tint = Color.Black,'
+)
 
 pattern = r'@Composable\nprivate fun TimeMarkers\(clips: List<Clip>, contentWidth: Float, pixelsPerSecond: Float\) \{.*?\n\}\n\n@Composable\nprivate fun BottomTools'
 replacement = '''@Composable
