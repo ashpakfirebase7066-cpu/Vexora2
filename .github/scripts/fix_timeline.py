@@ -64,6 +64,8 @@ private fun TimelineClip(
     onDuplicate: () -> Unit,
     onAction: (String) -> Unit
 ) {
+    var arrowActive by remember { mutableStateOf(false) }
+
     Box(
         Modifier.width(width).fillMaxHeight(),
         contentAlignment = Alignment.Center
@@ -119,10 +121,15 @@ private fun TimelineClip(
                     .fillMaxHeight()
                     .pointerInput(clip.id) {
                         var pendingPx = 0f
+                        var moved = false
                         detectDragGestures(
-                            onDragStart = { pendingPx = 0f },
+                            onDragStart = {
+                                pendingPx = 0f
+                                moved = false
+                            },
                             onDrag = { change, dragAmount ->
                                 change.consume()
+                                moved = true
                                 pendingPx += dragAmount.x
                                 val tenths = (pendingPx / 5.5f).toInt()
                                 if (tenths != 0) {
@@ -130,8 +137,13 @@ private fun TimelineClip(
                                     pendingPx -= tenths * 5.5f
                                 }
                             },
-                            onDragEnd = { pendingPx = 0f },
-                            onDragCancel = { pendingPx = 0f }
+                            onDragEnd = {
+                                if (!moved) arrowActive = !arrowActive
+                                pendingPx = 0f
+                            },
+                            onDragCancel = {
+                                pendingPx = 0f
+                            }
                         )
                     },
                 contentAlignment = Alignment.CenterEnd
@@ -151,7 +163,7 @@ private fun TimelineClip(
                         Icon(
                             Icons.Default.ChevronRight,
                             "Drag to extend image duration",
-                            tint = Color.Black,
+                            tint = if (arrowActive) Color.White else Color.Black,
                             modifier = Modifier.size(24.dp)
                         )
                     }
