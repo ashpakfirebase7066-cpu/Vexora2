@@ -543,9 +543,8 @@ private fun TimelineClip(
         if (onResize != null && selected) {
             Box(
                 Modifier.align(Alignment.CenterEnd)
-                    .width(24.dp)
+                    .width(32.dp)
                     .fillMaxHeight()
-                    .clickable { }
                     .pointerInput(clip.id) {
                         var pendingPx = 0f
                         detectDragGestures(
