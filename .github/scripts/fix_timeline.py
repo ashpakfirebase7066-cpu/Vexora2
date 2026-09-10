@@ -55,10 +55,10 @@ new_resize = '''    fun updateSelectedDuration(newDuration: Long) {
 if old_resize in s:
     s = s.replace(old_resize, new_resize)
 
-# Add an end-of-drag callback to TimelineClip.
+# Add an end-of-drag callback to TimelineClip. Default keeps older call sites compiling.
 s = s.replace(
     'onResize: ((Float) -> Unit)?,\n    toolbarVisible: Boolean,',
-    'onResize: ((Float) -> Unit)?,\n    onResizeEnd: (() -> Unit)?,\n    toolbarVisible: Boolean,'
+    'onResize: ((Float) -> Unit)?,\n    onResizeEnd: (() -> Unit)? = null,\n    toolbarVisible: Boolean,'
 )
 
 # Pass the callback from MainMediaLane into TimelineClip.
