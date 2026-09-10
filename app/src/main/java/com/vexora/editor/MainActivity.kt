@@ -436,6 +436,7 @@ private fun MainMediaLane(
                         width = width.dp,
                         onClick = { onSelect(index) },
                         onResize = if (index == selected && !clip.video) onResize else null,
+                        onResizeEnd = if (index == selected && !clip.video) onResizeEnd else null,
                         toolbarVisible = toolbarVisible && index == selected,
                         onDuplicate = onDuplicate,
                         onAction = onAction
@@ -611,22 +612,13 @@ private fun TimelineClip(
 private fun TimeMarkers(clips: List<Clip>, contentWidth: Float, pixelsPerSecond: Float) {
     val totalMs = clips.sumOf { it.duration }
     val totalSeconds = max(1, kotlin.math.ceil(totalMs / 1000.0).toInt())
-
-    Row(
-        Modifier.width(contentWidth.dp).height(32.dp).background(Color(0xFF15161A)),
-        verticalAlignment = Alignment.Top
-    ) {
+    Row(Modifier.width(contentWidth.dp).height(32.dp).background(Color(0xFF15161A)), verticalAlignment = Alignment.Top) {
         for (second in 0..totalSeconds) {
             val x = second * pixelsPerSecond
             if (x <= contentWidth) {
                 Box(Modifier.width(pixelsPerSecond.dp).fillMaxHeight()) {
                     Box(Modifier.width(1.dp).height(6.dp).background(SecondaryText))
-                    Text(
-                        "${second}s",
-                        color = SecondaryText,
-                        fontSize = 7.sp,
-                        modifier = Modifier.padding(top = 8.dp)
-                    )
+                    Text("${second}s", color = SecondaryText, fontSize = 7.sp, modifier = Modifier.padding(top = 8.dp))
                 }
             }
         }
