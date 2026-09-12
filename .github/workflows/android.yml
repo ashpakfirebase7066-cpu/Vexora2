@@ -26,6 +26,8 @@ jobs:
           gradle-version: '8.10.2'
       - name: Apply timeline fixes
         run: python3 .github/scripts/fix_timeline.py
+      - name: Add VN-style timeline zoom
+        run: python3 .github/scripts/add_timeline_zoom.py
       - name: Keep selected resize handle on top
         run: python3 .github/scripts/ensure_selected_arrow.py
       - name: Set arrow offset to -5dp
@@ -37,7 +39,7 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add app/src/main/java/com/vexora/editor/MainActivity.kt
           if ! git diff --cached --quiet; then
-            git commit -m "Set resize arrow offset to -5dp"
+            git commit -m "Add VN-style timeline zoom"
             git push
           fi
       - name: Build debug APK
