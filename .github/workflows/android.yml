@@ -28,6 +28,8 @@ jobs:
         run: python3 .github/scripts/fix_timeline.py
       - name: Add VN-style timeline zoom
         run: python3 .github/scripts/add_timeline_zoom.py
+      - name: Fix timeline zoom compile compatibility
+        run: python3 .github/scripts/fix_zoom_compile.py
       - name: Keep selected resize handle on top
         run: python3 .github/scripts/ensure_selected_arrow.py
       - name: Set arrow offset to -5dp
