@@ -297,7 +297,15 @@ private fun Timeline(
                 value = timelineZoom,
                 onValueChange = { timelineZoom = it.coerceIn(0.5f, 4f) },
                 valueRange = 0.5f..4f,
-                modifier = Modifier.width(105.dp).height(30.dp)
+                modifier = Modifier.width(105.dp).height(30.dp),
+                thumb = {
+                    Box(
+                        Modifier
+                            .size(12.dp)
+                            .clip(RoundedCornerShape(50))
+                            .background(Color.White)
+                    )
+                }
             )
             IconButton(onClick = onLeft, enabled = selected > 0, modifier = Modifier.size(34.dp)) {
                 Icon(
