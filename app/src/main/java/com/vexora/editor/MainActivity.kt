@@ -297,16 +297,7 @@ private fun Timeline(
                 value = timelineZoom,
                 onValueChange = { timelineZoom = it.coerceIn(0.5f, 4f) },
                 valueRange = 0.5f..4f,
-                modifier = Modifier.width(105.dp).height(30.dp),
-                thumb = {
-                    SliderDefaults.Thumb(
-                        interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
-                        thumbSize = DpSize(10.dp, 10.dp)
-                    )
-                },
-                track = { sliderState ->
-                    SliderDefaults.Track(sliderState, modifier = Modifier.height(3.dp))
-                }
+                modifier = Modifier.width(105.dp).height(30.dp)
             )
             IconButton(onClick = onLeft, enabled = selected > 0, modifier = Modifier.size(34.dp)) {
                 Icon(
