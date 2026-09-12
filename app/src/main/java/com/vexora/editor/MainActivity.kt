@@ -13,6 +13,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.pointerInput
@@ -273,9 +274,11 @@ private fun Timeline(
     toolbarVisible: Boolean
 ) {
     val timelineScroll = rememberScrollState()
+    var timelineZoom by remember { mutableFloatStateOf(1f) }
     val totalDuration = clips.sumOf { it.duration }.coerceAtLeast(3000L)
     val pixelsPerSecond = 55f
-    val contentWidth = (totalDuration / 1000f * pixelsPerSecond + 8f).coerceAtLeast(360f)
+    val zoomedPixelsPerSecond = pixelsPerSecond * timelineZoom
+    val contentWidth = (totalDuration / 1000f * zoomedPixelsPerSecond + 8f).coerceAtLeast(360f)
 
     Column(Modifier.fillMaxWidth().height(300.dp).background(Color(0xFF15161A))) {
         Row(
@@ -289,6 +292,22 @@ private fun Timeline(
                 modifier = Modifier.width(76.dp).padding(start = 12.dp)
             )
             Spacer(Modifier.weight(1f))
+            Text("${"%.1f".format(timelineZoom)}×", color = SecondaryText, fontSize = 9.sp)
+            Slider(
+                value = timelineZoom,
+                onValueChange = { timelineZoom = it.coerceIn(0.5f, 4f) },
+                valueRange = 0.5f..4f,
+                modifier = Modifier.width(105.dp).height(30.dp),
+                thumb = {
+                    SliderDefaults.Thumb(
+                        interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                        thumbSize = DpSize(10.dp, 10.dp)
+                    )
+                },
+                track = { sliderState ->
+                    SliderDefaults.Track(sliderState, modifier = Modifier.height(3.dp))
+                }
+            )
             IconButton(onClick = onLeft, enabled = selected > 0, modifier = Modifier.size(34.dp)) {
                 Icon(
                     Icons.Default.ArrowBack,
@@ -334,7 +353,14 @@ private fun Timeline(
                 }
             }
 
-            BoxWithConstraints(Modifier.fillMaxHeight().weight(1f)) {
+            BoxWithConstraints(
+                Modifier.fillMaxHeight().weight(1f)
+                    .pointerInput(Unit) {
+                        detectTransformGestures { _, _, zoomChange, _ ->
+                            timelineZoom = (timelineZoom * zoomChange).coerceIn(0.5f, 4f)
+                        }
+                    }
+            ) {
                 val visibleWidth = max(maxWidth.value, contentWidth)
                 Column(Modifier.fillMaxHeight().horizontalScroll(timelineScroll)) {
                     TimelineLane(44.dp, visibleWidth, "Tap to add music")
@@ -350,9 +376,10 @@ private fun Timeline(
                         onResize = onResize,
                         onResizeEnd = onResizeEnd,
                         contentWidth = visibleWidth,
+                        timelineZoom = timelineZoom,
                         toolbarVisible = toolbarVisible
                     )
-                    TimeMarkers(clips, visibleWidth, pixelsPerSecond)
+                    TimeMarkers(clips, visibleWidth, zoomedPixelsPerSecond)
                 }
             }
         }
@@ -406,6 +433,7 @@ private fun MainMediaLane(
     onResize: (Float) -> Unit,
     onResizeEnd: () -> Unit,
     contentWidth: Float,
+    timelineZoom: Float,
     toolbarVisible: Boolean
 ) {
     Box(
@@ -429,7 +457,7 @@ private fun MainMediaLane(
         } else {
             Row(Modifier.fillMaxHeight().padding(start = 8.dp, top = 10.dp, bottom = 10.dp)) {
                 clips.forEachIndexed { index, clip ->
-                    val width = (clip.duration / 1000f * 55f).coerceAtLeast(1f)
+                    val width = (clip.duration / 1000f * 55f * timelineZoom).coerceAtLeast(1f)
                     TimelineClip(
                         clip = clip,
                         selected = index == selected,
@@ -447,7 +475,7 @@ private fun MainMediaLane(
 
         if (selected in clips.indices && toolbarVisible) {
             val toolbarStartPx = 8f + clips.take(selected).sumOf {
-                (it.duration / 1000f * 55f).coerceAtLeast(1f).toDouble()
+                (it.duration / 1000f * 55f * timelineZoom).coerceAtLeast(1f).toDouble()
             }.toFloat()
             ClipToolbar(
                 modifier = Modifier.offset(x = toolbarStartPx.dp, y = (-48).dp),
