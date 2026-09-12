@@ -258,6 +258,7 @@ private fun TimeRow(total: Long) {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun Timeline(
     clips: List<Clip>,
