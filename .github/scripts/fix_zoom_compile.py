@@ -5,6 +5,15 @@ p = Path("app/src/main/java/com/vexora/editor/MainActivity.kt")
 s = p.read_text()
 s = s.replace('import androidx.compose.ui.unit.DpSize\n', '')
 
+# Timeline uses the Material3 Slider thumb API, which is experimental in
+# the project's Material3 version. Opt in only for this composable.
+if '@OptIn(ExperimentalMaterial3Api::class)\n@Composable\nprivate fun Timeline(' not in s:
+    s = s.replace(
+        '@Composable\nprivate fun Timeline(',
+        '@OptIn(ExperimentalMaterial3Api::class)\n@Composable\nprivate fun Timeline(',
+        1
+    )
+
 # Keep the zoom slider compatible with Material3 while giving it a small
 # circular white thumb/knob.
 pattern = r'''            Slider\(\n                value = timelineZoom,\n                onValueChange = \{ timelineZoom = it\.coerceIn\(0\.5f, 4f\) \},\n                valueRange = 0\.5f\.\.4f,\n                modifier = Modifier\.width\(105\.dp\)\.height\(30\.dp\),\n                thumb = \{.*?                \}\n            \)'''
